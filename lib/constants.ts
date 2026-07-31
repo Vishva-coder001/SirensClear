@@ -9,6 +9,19 @@ export interface StatMetric {
   badge?: string;
 }
 
+/** Controls which overlay layers are visible on the map */
+export interface MapLayerVisibility {
+  ambulances: boolean;
+  hazards: boolean;
+  route: boolean;
+}
+
+export const DEFAULT_LAYER_VISIBILITY: MapLayerVisibility = {
+  ambulances: true,
+  hazards: true,
+  route: true,
+};
+
 export interface HazardItem {
   id: string;
   title: string;
@@ -101,63 +114,63 @@ export const OVERVIEW_STATS: StatMetric[] = [
 export const HAZARDS_LIST: HazardItem[] = [
   {
     id: 'hz-101',
-    title: 'Multi-Vehicle Collision on Market St.',
+    title: 'Multi-Vehicle Collision on Banjara Hills Rd.',
     severity: 'critical',
     verificationStatus: 'verified',
     verificationSource: 'Traffic Cam #402 & 911 AI Feed',
-    location: 'Market St & 4th Avenue',
-    coordinates: [37.785, -122.406],
+    location: 'Banjara Hills Rd No. 12 & Jubilee Hills',
+    coordinates: [78.4490, 17.4310],
     timestamp: '2 mins ago',
-    affectedRoutes: ['Route A4 (Central)', 'Route B1'],
-    description: '3 vehicles blocking eastbound lanes. Emergency services on scene.',
+    affectedRoutes: ['NH 65 (Inner Ring)', 'Jubilee Hills Junction'],
+    description: '3 vehicles blocking westbound lanes. Emergency services dispatched.',
   },
   {
     id: 'hz-102',
-    title: 'Water Main Burst - Bay Bridge Approach',
+    title: 'Waterlogging – Tank Bund Road Closure',
     severity: 'high',
     verificationStatus: 'verified',
     verificationSource: 'Municipal Sensor Grid #12',
-    location: 'Interstate 80 Eastbound Exit 2B',
-    coordinates: [37.789, -122.389],
+    location: 'Tank Bund Rd near NTR Garden',
+    coordinates: [78.4744, 17.4239],
     timestamp: '8 mins ago',
-    affectedRoutes: ['Express Corridor 3'],
-    description: 'High water accumulation causing severe traction loss and lane closures.',
+    affectedRoutes: ['Tank Bund Express', 'Lakdi Ka Pul Bypass'],
+    description: 'Heavy inundation causing complete lane closure near Hussain Sagar Lake.',
   },
   {
     id: 'hz-103',
-    title: 'Grid 7 Signal Infrastructure Failure',
+    title: 'Signal Failure – Ameerpet Junction',
     severity: 'high',
     verificationStatus: 'unverified',
     verificationSource: 'Automated Telemetry Ping',
-    location: 'Mission St & 16th Street',
-    coordinates: [37.765, -122.419],
+    location: 'Ameerpet Metro Station Junction',
+    coordinates: [78.4482, 17.4375],
     timestamp: '14 mins ago',
-    affectedRoutes: ['Mission Bypass South'],
+    affectedRoutes: ['Ameerpet Metro Corridor', 'Punjagutta Ring Rd'],
     description: 'Traffic signals flashing red in all directions. Heavy congestion forming.',
   },
   {
     id: 'hz-104',
-    title: 'Debris Spill on Highway 101',
+    title: 'Road Debris on ORR Stretch',
     severity: 'moderate',
     verificationStatus: 'verified',
     verificationSource: 'Highway Patrol Broadcast',
-    location: 'HWY 101 Mile Marker 14.2',
-    coordinates: [37.751, -122.404],
+    location: 'Outer Ring Road near Gachibowli Exit',
+    coordinates: [78.3580, 17.4399],
     timestamp: '21 mins ago',
-    affectedRoutes: ['HWY 101 Southbound'],
-    description: 'Cargo container spill restricted right shoulder. Reduced clearance speed.',
+    affectedRoutes: ['ORR Southbound Lane 2'],
+    description: 'Cargo debris restricted right shoulder. Speed reduced to 40 km/h.',
   },
   {
     id: 'hz-105',
-    title: 'Power Outage Traffic Signal Blackout',
+    title: 'Power Outage – Hitech City Grid Zone',
     severity: 'moderate',
     verificationStatus: 'pending',
     verificationSource: 'Public Safety Dispatch',
-    location: 'Geary Blvd & Van Ness Ave',
-    coordinates: [37.786, -122.421],
+    location: 'HITEC City Main Rd & Cyber Towers',
+    coordinates: [78.3810, 17.4474],
     timestamp: '35 mins ago',
-    affectedRoutes: ['Geary Transit Way'],
-    description: 'Local power surge rendered 4 key intersections unmonitored.',
+    affectedRoutes: ['HITEC City Corridor'],
+    description: 'Power surge rendered 4 key intersections unmonitored near HITEC City.',
   },
 ];
 
@@ -204,41 +217,45 @@ export const MOCK_AMBULANCE_UNITS: AmbulanceUnit[] = [
     id: 'amb-08',
     callsign: 'AMB-08',
     status: 'en_route',
-    hospitalTarget: 'St. Jude Central',
+    hospitalTarget: 'Yashoda Hospitals, Secunderabad',
     driver: 'Unit Alpha 1',
     eta: '3.4 min',
     speed: '58 km/h',
-    coordinates: [37.781, -122.411],
+    // [longitude, latitude] – Banjara Hills area
+    coordinates: [78.4490, 17.4250],
   },
   {
     id: 'amb-14',
     callsign: 'AMB-14',
     status: 'at_scene',
-    hospitalTarget: 'General Health West',
+    hospitalTarget: 'Apollo Hospital, Jubilee Hills',
     driver: 'Unit Beta 3',
     eta: 'On Scene',
     speed: '0 km/h',
-    coordinates: [37.773, -122.401],
+    // Necklace Road area
+    coordinates: [78.4744, 17.4140],
   },
   {
     id: 'amb-22',
     callsign: 'AMB-22',
     status: 'available',
-    hospitalTarget: 'Standby Base 2',
+    hospitalTarget: 'Standby – HITEC City Base',
     driver: 'Unit Gamma 7',
     eta: 'Standby',
     speed: '0 km/h',
-    coordinates: [37.795, -122.418],
+    // HITEC City area
+    coordinates: [78.3810, 17.4474],
   },
   {
     id: 'amb-03',
     callsign: 'AMB-03',
     status: 'returning',
-    hospitalTarget: 'St. Jude Central',
+    hospitalTarget: 'Yashoda Hospitals, Secunderabad',
     driver: 'Unit Delta 4',
     eta: '7.1 min',
     speed: '42 km/h',
-    coordinates: [37.762, -122.428],
+    // Ameerpet area
+    coordinates: [78.4482, 17.4375],
   },
 ];
 
