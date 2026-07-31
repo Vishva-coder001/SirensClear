@@ -1,3 +1,5 @@
+import type { RouteGeoJSON } from "@/lib/map-config";
+
 export interface StatMetric {
   id: string;
   title: string;
@@ -258,6 +260,35 @@ export const MOCK_AMBULANCE_UNITS: AmbulanceUnit[] = [
     coordinates: [78.4482, 17.4375],
   },
 ];
+
+// ─── Mock Route (Hyderabad – replaces EMPTY_ROUTE until OSRM is wired) ─────────
+//
+// Represents an optimised ambulance path from HITEC City (AMB-22 standby base)
+// through Kondapur and Jubilee Hills to the hz-101 incident zone in Banjara Hills.
+// Swap features[0].geometry.coordinates with an OSRM route geometry in Phase 4.
+
+export const MOCK_ROUTE: RouteGeoJSON = {
+  type: "FeatureCollection",
+  features: [
+    {
+      type: "Feature",
+      properties: { routeId: "mock-route-01", unitId: "amb-22" },
+      geometry: {
+        type: "LineString",
+        coordinates: [
+          [78.3810, 17.4474], // HITEC City – AMB-22 standby base
+          [78.3950, 17.4450], // Mindspace Junction
+          [78.4060, 17.4430], // Raidurg
+          [78.4150, 17.4410], // Kondapur
+          [78.4280, 17.4380], // Jubilee Hills Check Post
+          [78.4332, 17.4401], // Road No. 36, Jubilee Hills
+          [78.4400, 17.4350], // Banjara Hills approach
+          [78.4490, 17.4310], // hz-101 incident zone – Banjara Hills Rd No. 12
+        ],
+      },
+    },
+  ],
+};
 
 export const DISPATCH_PRESETS = {
   origins: [

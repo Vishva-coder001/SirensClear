@@ -4,22 +4,15 @@
  * Central configuration for the MapLibre GL map.
  * Modify this file to change the default map center, zoom, pitch, bearing,
  * and tile style URL without touching any component code.
- *
- * All types here are compatible with react-map-gl/maplibre and maplibre-gl.
  */
 
 // ─── Default View State ──────────────────────────────────────────────────────
 
 export interface MapViewState {
-  /** Longitude of the initial map center */
   longitude: number;
-  /** Latitude of the initial map center */
   latitude: number;
-  /** Initial zoom level (0–22) */
   zoom: number;
-  /** Camera pitch in degrees (0 = flat, up to 85) */
   pitch: number;
-  /** Camera bearing / rotation in degrees (0 = north) */
   bearing: number;
 }
 
@@ -34,8 +27,8 @@ export const DEFAULT_VIEW_STATE: MapViewState = {
 // ─── Map Style ───────────────────────────────────────────────────────────────
 
 /**
- * OpenStreetMap-compatible dark tile style hosted by CARTO.
- * No API key required. Uses MapLibre GL style spec format.
+ * CartoDB Dark Matter – OpenStreetMap-compatible dark vector tiles.
+ * No API key required.
  */
 export const MAP_STYLE_URL =
   "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
@@ -49,32 +42,50 @@ export const MAP_CONSTRAINTS = {
   maxPitch: 85,
 } as const;
 
-// ─── Tile Attribution ─────────────────────────────────────────────────────────
-
-export const MAP_ATTRIBUTION =
-  '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions">CARTO</a>';
-
-// ─── Layer & Source IDs (stable keys for future OSRM / Supabase integration) ─
+// ─── Stable Source & Layer IDs ────────────────────────────────────────────────
+// Keep these constant so OSRM/Supabase integrations can reference them safely.
 
 export const MAP_SOURCE_IDS = {
   route: "sc-route-source",
-  hazardRadius: "sc-hazard-radius-source",
 } as const;
 
 export const MAP_LAYER_IDS = {
-  routeLine: "sc-route-line-layer",
   routeLineGlow: "sc-route-line-glow-layer",
-  hazardRadius: "sc-hazard-radius-layer",
+  routeLine: "sc-route-line-layer",
 } as const;
 
-// ─── GeoJSON placeholder types (ready for OSRM response hydration) ────────────
+// ─── GeoJSON types (self-contained, no @types/geojson dependency) ─────────────
 
-export interface RouteGeoJSON {
-  type: "FeatureCollection";
-  features: GeoJSON.Feature<GeoJSON.LineString>[];
+/** A single coordinate as [longitude, latitude] */
+export type LngLat = [number, number];
+
+/** A GeoJSON LineString feature ready for MapLibre GL consumption */
+export interface RouteFeature {
+  type: "Feature";
+  properties: Record<string, unknown> | null;
+  geometry: {
+    type: "LineString";
+    coordinates: LngLat[];
+  };
 }
 
-/** Empty route — replace with OSRM response in Phase 3 */
+/**
+ * GeoJSON FeatureCollection for a route.
+ * Structured to accept OSRM route geometry directly in Phase 4.
+ *
+ * OSRM integration note:
+ *   const geom = osrmResponse.routes[0].geometry; // {type:"LineString", coordinates:[...]}
+ *   const route: RouteGeoJSON = {
+ *     type: "FeatureCollection",
+ *     features: [{ type: "Feature", properties: {}, geometry: geom }],
+ *   };
+ */
+export interface RouteGeoJSON {
+  type: "FeatureCollection";
+  features: RouteFeature[];
+}
+
+/** Empty route — used as the default/reset value */
 export const EMPTY_ROUTE: RouteGeoJSON = {
   type: "FeatureCollection",
   features: [],

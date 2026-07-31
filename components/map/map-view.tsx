@@ -3,24 +3,21 @@
 /**
  * components/map/map-view.tsx
  *
- * Primary reusable MapLibre GL map component.
+ * Primary MapLibre GL map component.
  *
- * Responsibilities:
- *   - Initialises a MapLibre GL map via react-map-gl/maplibre.
- *   - Reads all defaults (center, zoom, pitch, bearing, tile style) from lib/map-config.ts.
- *   - Composes independent layer components: AmbulanceMarkers, HazardMarkers, RouteLayer.
- *   - Exposes typed props so the parent can pass data without this component knowing
- *     where the data comes from (constants, Supabase, OSRM, etc.).
- *   - Handles loading and error states internally.
+ * This component is the orchestration layer:
+ *   - Initialises the map canvas from lib/map-config.ts defaults.
+ *   - Reads UI state (selection, visibility, active route) from the Zustand store.
+ *   - Passes data (ambulances, hazards) down to sub-components as props.
+ *   - Implements flyTo when the selected hazard changes.
+ *   - Does NOT own any business state — that lives in the store.
  *
- * Future integration:
- *   - Phase 3 (Supabase Realtime): Subscribe in the parent; pass live arrays here.
- *   - Phase 3 (OSRM):              Pass parsed GeoJSON into the `route` prop.
- *
- * NOTE: Must be "use client" – MapLibre requires browser APIs (WebGL, DOM).
+ * Phase 4 – Supabase integration:
+ *   Replace `ambulances` / `hazards` props with live arrays from a Supabase
+ *   Realtime hook — this file requires no structural changes.
  */
 
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import Map, {
   NavigationControl,
   FullscreenControl,
@@ -31,15 +28,9 @@ import {
   DEFAULT_VIEW_STATE,
   MAP_STYLE_URL,
   MAP_CONSTRAINTS,
-  EMPTY_ROUTE,
-  RouteGeoJSON,
 } from "@/lib/map-config";
-import {
-  AmbulanceUnit,
-  HazardItem,
-  MapLayerVisibility,
-  DEFAULT_LAYER_VISIBILITY,
-} from "@/lib/constants";
+import { AmbulanceUnit, HazardItem } from "@/lib/constants";
+import { useMapStore } from "@/lib/store/map-store";
 import { AmbulanceMarkers } from "./ambulance-markers";
 import { HazardMarkers } from "./hazard-markers";
 import { RouteLayer } from "./route-layer";
@@ -49,25 +40,11 @@ import { Loader2, WifiOff } from "lucide-react";
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 export interface MapViewProps {
-  /**
-   * Ambulance units to render as interactive map markers.
-   * Defaults to an empty array; hydrated by parent from constants or Supabase.
-   */
+  /** Ambulance units — sourced from constants, or Supabase in Phase 4 */
   ambulances?: AmbulanceUnit[];
-
-  /**
-   * Road hazard items to render as interactive map markers.
-   * Defaults to an empty array; hydrated by parent from constants or Supabase.
-   */
+  /** Road hazard items — sourced from constants, or Supabase in Phase 4 */
   hazards?: HazardItem[];
-
-  /**
-   * Optimised route GeoJSON to render as a glowing polyline.
-   * Defaults to EMPTY_ROUTE; hydrated by parent from OSRM response in Phase 3.
-   */
-  route?: RouteGeoJSON;
-
-  /** CSS height class applied to the map container. Defaults to h-full. */
+  /** Additional class names for the root container */
   className?: string;
 }
 
@@ -76,42 +53,54 @@ export interface MapViewProps {
 export function MapView({
   ambulances = [],
   hazards = [],
-  route = EMPTY_ROUTE,
   className = "h-full w-full",
 }: MapViewProps) {
   const mapRef = useRef<MapRef>(null);
 
-  // Layer visibility — controlled locally; can be lifted to parent if needed
-  const [visibility, setVisibility] =
-    useState<MapLayerVisibility>(DEFAULT_LAYER_VISIBILITY);
+  // ── Store ─────────────────────────────────────────────────────────────────
+  const {
+    selectedHazardId,
+    selectedAmbulanceId,
+    activeRoute,
+    layerVisibility,
+    selectHazard,
+    selectAmbulance,
+    toggleLayer,
+  } = useMapStore();
 
-  // Loading / error states driven by MapLibre map events
+  // ── Map lifecycle ─────────────────────────────────────────────────────────
   const [isLoading, setIsLoading] = useState(true);
-  const [hasError, setHasError] = useState(false);
+  const [hasError, setHasError]   = useState(false);
 
-  const handleLoad = useCallback(() => {
-    setIsLoading(false);
-    setHasError(false);
-  }, []);
+  const handleLoad  = useCallback(() => { setIsLoading(false); setHasError(false); }, []);
+  const handleError = useCallback(() => { setIsLoading(false); setHasError(true);  }, []);
 
-  const handleError = useCallback(() => {
-    setIsLoading(false);
-    setHasError(true);
-  }, []);
+  // ── Fly-to on hazard selection ─────────────────────────────────────────────
+  useEffect(() => {
+    if (!selectedHazardId) return;
+    const hazard = hazards.find((h) => h.id === selectedHazardId);
+    if (!hazard) return;
 
-  const toggleLayer = useCallback((layer: keyof MapLayerVisibility) => {
-    setVisibility((prev) => ({ ...prev, [layer]: !prev[layer] }));
-  }, []);
+    const map = mapRef.current;
+    if (!map) return;
+
+    const [longitude, latitude] = hazard.coordinates;
+    map.flyTo({
+      center: [longitude, latitude],
+      zoom: 15,
+      duration: 1000,
+      essential: true,
+    });
+  }, [selectedHazardId, hazards]);
 
   return (
     <div className={`relative overflow-hidden rounded-b-xl ${className}`}>
+
       {/* ── Loading overlay ── */}
       {isLoading && (
         <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-zinc-950/95 backdrop-blur-sm">
           <Loader2 className="h-8 w-8 text-blue-400 animate-spin" />
-          <p className="text-xs font-mono text-zinc-400">
-            Loading MapLibre GL tiles…
-          </p>
+          <p className="text-xs font-mono text-zinc-400">Loading MapLibre GL tiles…</p>
         </div>
       )}
 
@@ -119,12 +108,9 @@ export function MapView({
       {hasError && !isLoading && (
         <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-zinc-950/95 backdrop-blur-sm">
           <WifiOff className="h-8 w-8 text-red-400" />
-          <p className="text-sm font-mono text-zinc-300 font-semibold">
-            Map tiles unavailable
-          </p>
+          <p className="text-sm font-mono text-zinc-300 font-semibold">Map tiles unavailable</p>
           <p className="text-xs font-mono text-zinc-500 max-w-xs text-center">
-            Could not load the CartoDB dark-matter style. Check your network
-            connection — the map will retry automatically on next render.
+            Could not load the CartoDB dark-matter style. Check your network connection.
           </p>
         </div>
       )}
@@ -144,20 +130,37 @@ export function MapView({
         onError={handleError}
         attributionControl={false}
       >
-        {/* ── Native GL controls (bottom-right by default) ── */}
+        {/* Native GL controls */}
         <NavigationControl position="bottom-right" visualizePitch />
-        <FullscreenControl position="top-right" />
-        <ScaleControl position="bottom-left" unit="metric" />
+        <FullscreenControl  position="top-right" />
+        <ScaleControl      position="bottom-left" unit="metric" />
 
-        {/* ── Overlay layers ── */}
-        <RouteLayer route={route} visible={visibility.route} />
-        <HazardMarkers hazards={hazards} visible={visibility.hazards} />
-        <AmbulanceMarkers ambulances={ambulances} visible={visibility.ambulances} />
+        {/* Route polyline (beneath markers so markers sit on top) */}
+        <RouteLayer
+          route={activeRoute}
+          visible={layerVisibility.route}
+        />
+
+        {/* Hazard markers — drive selection via store */}
+        <HazardMarkers
+          hazards={hazards}
+          selectedId={selectedHazardId}
+          onSelect={selectHazard}
+          visible={layerVisibility.hazards}
+        />
+
+        {/* Ambulance markers — drive selection via store */}
+        <AmbulanceMarkers
+          ambulances={ambulances}
+          selectedId={selectedAmbulanceId}
+          onSelect={selectAmbulance}
+          visible={layerVisibility.ambulances}
+        />
       </Map>
 
-      {/* ── React overlay UI (layer toggles, legend, badge) ── */}
+      {/* React overlay controls — reads / writes store through callbacks */}
       <MapControls
-        visibility={visibility}
+        visibility={layerVisibility}
         onToggle={toggleLayer}
         ambulanceCount={ambulances.length}
         hazardCount={hazards.length}
