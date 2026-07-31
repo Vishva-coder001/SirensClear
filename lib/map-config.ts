@@ -31,7 +31,7 @@ export const DEFAULT_VIEW_STATE: MapViewState = {
  * No API key required.
  */
 export const MAP_STYLE_URL =
-  "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
+"https://demotiles.maplibre.org/style.json";
 
 // ─── Map Constraints ─────────────────────────────────────────────────────────
 

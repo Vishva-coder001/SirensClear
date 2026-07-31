@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { testConnection } from "@/lib/supabase/testConnection";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { MapPlaceholder } from "@/components/dashboard/map-placeholder";
@@ -11,8 +12,14 @@ import { OVERVIEW_STATS } from "@/lib/constants";
 import { BarChart3, Settings, ShieldCheck } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
+import { AIHazardIntelligence } from "@/components/ai/AIHazardIntelligence";
+
 export default function Home() {
   const [activeTab, setActiveTab] = useState("dashboard");
+
+  useEffect(() => {
+    testConnection();
+  }, []);
 
   return (
     <DashboardLayout activeTab={activeTab} setActiveTab={setActiveTab}>
@@ -59,11 +66,23 @@ export default function Home() {
             </div>
           </div>
 
+          {/* Phase 3 AI Hazard Intelligence Section */}
+          <div className="pt-4 border-t border-zinc-800/80">
+            <AIHazardIntelligence />
+          </div>
+
           {/* Decision Engine Panel (Full Width Row) */}
           <DecisionEnginePanel />
 
           {/* Bottom Emergency Dispatch Control Panel (Full Width Row) */}
           <DispatchPanel />
+        </div>
+      )}
+
+      {/* Dedicated AI Intelligence Tab View */}
+      {activeTab === "ai-intelligence" && (
+        <div className="space-y-4">
+          <AIHazardIntelligence />
         </div>
       )}
 
@@ -98,6 +117,9 @@ export default function Home() {
           </div>
         </div>
       )}
+
+
+      
 
       {/* 4. DISPATCH ISOLATED VIEW */}
       {activeTab === "dispatch" && (

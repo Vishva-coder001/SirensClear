@@ -12,6 +12,7 @@ import {
   ChevronRight,
   Siren,
   ShieldCheck,
+  Cpu,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -27,6 +28,7 @@ export const NAV_ITEMS = [
   { id: "live-map", label: "Live Map", icon: MapPin },
   { id: "hazards", label: "Hazards", icon: Flame, badge: "18" },
   { id: "dispatch", label: "Dispatch", icon: Send },
+  { id: "ai-intelligence", label: "AI Intelligence", icon: Cpu, badge: "Phase 3" },
   { id: "analytics", label: "Analytics", icon: BarChart3, placeholder: true },
   { id: "settings", label: "Settings", icon: Settings, placeholder: true },
 ];
