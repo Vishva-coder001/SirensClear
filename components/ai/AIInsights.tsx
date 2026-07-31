@@ -1,7 +1,9 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { AIInsightsData } from "@/types/ai";
+import { HazardService } from "@/services/HazardService";
+import { DispatchService } from "@/services/DispatchService";
 import { MOCK_AI_INSIGHTS } from "@/lib/mock-ai-data";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -43,7 +45,43 @@ function AnimatedNumber({ value, suffix = "", decimals = 0 }: { value: number; s
   );
 }
 
-export function AIInsights({ insights = MOCK_AI_INSIGHTS }: AIInsightsProps) {
+export function AIInsights({ insights: propInsights }: AIInsightsProps) {
+  const [insightsData, setInsightsData] = useState<AIInsightsData>(propInsights || MOCK_AI_INSIGHTS);
+
+  const computeDynamicInsights = useCallback(async () => {
+    const hazardsRes = await HazardService.getAllHazards();
+    const dispatchesRes = await DispatchService.getAllDispatches();
+
+    if (hazardsRes.data) {
+      const hazards = hazardsRes.data;
+      const criticalCount = hazards.filter((h) => h.severity === "Critical").length;
+
+      const totalConfidence = hazards.reduce((acc, h) => acc + h.verificationPercentage, 0);
+      const avgConfidence = hazards.length > 0 ? Number((totalConfidence / hazards.length).toFixed(1)) : 94.2;
+
+      let avgEta = 4.8;
+      if (dispatchesRes.data && dispatchesRes.data.length > 0) {
+        const totalEta = dispatchesRes.data.reduce((acc, d) => acc + d.etaMinutes, 0);
+        avgEta = Number((totalEta / dispatchesRes.data.length).toFixed(1));
+      }
+
+      setInsightsData({
+        criticalIncidents: criticalCount > 0 ? criticalCount : MOCK_AI_INSIGHTS.criticalIncidents,
+        averageEtaMinutes: avgEta,
+        averageConfidencePercentage: avgConfidence,
+        verificationSuccessPercentage: 98.6,
+        predictedCongestionLevel: hazards.length > 10 ? "Severe" : "Moderate",
+        activeUnitsDeployed: 14,
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!propInsights) {
+      computeDynamicInsights();
+    }
+  }, [propInsights, computeDynamicInsights]);
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 font-mono">
       {/* 1. Critical Incidents */}
@@ -56,7 +94,7 @@ export function AIInsights({ insights = MOCK_AI_INSIGHTS }: AIInsightsProps) {
         </div>
         <div className="flex items-baseline justify-between">
           <span className="text-2xl font-extrabold text-zinc-100 font-mono tracking-tight">
-            <AnimatedNumber value={insights.criticalIncidents} />
+            <AnimatedNumber value={insightsData.criticalIncidents} />
           </span>
           <Badge variant="outline" className="bg-red-950/80 text-red-400 border-red-500/30 text-[10px]">
             Priority P1
@@ -75,7 +113,7 @@ export function AIInsights({ insights = MOCK_AI_INSIGHTS }: AIInsightsProps) {
         </div>
         <div className="flex items-baseline justify-between">
           <span className="text-2xl font-extrabold text-emerald-400 font-mono tracking-tight">
-            <AnimatedNumber value={insights.averageEtaMinutes} decimals={1} suffix="m" />
+            <AnimatedNumber value={insightsData.averageEtaMinutes} decimals={1} suffix="m" />
           </span>
           <Badge variant="outline" className="bg-emerald-950/80 text-emerald-400 border-emerald-500/30 text-[10px]">
             Golden Hour Safe
@@ -94,13 +132,13 @@ export function AIInsights({ insights = MOCK_AI_INSIGHTS }: AIInsightsProps) {
         </div>
         <div className="flex items-baseline justify-between">
           <span className="text-2xl font-extrabold text-cyan-300 font-mono tracking-tight">
-            <AnimatedNumber value={insights.averageConfidencePercentage} decimals={1} suffix="%" />
+            <AnimatedNumber value={insightsData.averageConfidencePercentage} decimals={1} suffix="%" />
           </span>
           <Badge variant="outline" className="bg-cyan-950/80 text-cyan-400 border-cyan-500/30 text-[10px]">
             High Accuracy
           </Badge>
         </div>
-        <p className="text-[10px] text-zinc-500 mt-1">Derived across 20 active hazard nodes</p>
+        <p className="text-[10px] text-zinc-500 mt-1">Derived across active hazard nodes</p>
       </Card>
 
       {/* 4. Verification Success Rate */}
@@ -113,7 +151,7 @@ export function AIInsights({ insights = MOCK_AI_INSIGHTS }: AIInsightsProps) {
         </div>
         <div className="flex items-baseline justify-between">
           <span className="text-2xl font-extrabold text-blue-300 font-mono tracking-tight">
-            <AnimatedNumber value={insights.verificationSuccessPercentage} decimals={1} suffix="%" />
+            <AnimatedNumber value={insightsData.verificationSuccessPercentage} decimals={1} suffix="%" />
           </span>
           <Badge variant="outline" className="bg-blue-950/80 text-blue-400 border-blue-500/30 text-[10px]">
             Zero Spoofs
@@ -132,7 +170,7 @@ export function AIInsights({ insights = MOCK_AI_INSIGHTS }: AIInsightsProps) {
         </div>
         <div className="flex items-baseline justify-between">
           <span className="text-xl font-extrabold text-amber-300 font-mono tracking-tight">
-            {insights.predictedCongestionLevel}
+            {insightsData.predictedCongestionLevel}
           </span>
           <Badge variant="outline" className="bg-amber-950/80 text-amber-400 border-amber-500/30 text-[10px]">
             Rerouted

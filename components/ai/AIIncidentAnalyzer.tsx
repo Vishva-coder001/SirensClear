@@ -1,12 +1,14 @@
 "use client";
 
 import React, { useState } from "react";
-import { ParsedIncident } from "@/types/ai";
+import { ParsedIncident, AIHazard } from "@/types/ai";
 import { parseEmergencyReportMock } from "@/lib/mock-ai-data";
+import { HazardService } from "@/services/HazardService";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
 import {
   Sparkles,
   Bot,
@@ -24,7 +26,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 
 interface AIIncidentAnalyzerProps {
-  onIncidentParsed?: (incident: ParsedIncident) => void;
+  onIncidentCreated?: (hazard: AIHazard) => void;
 }
 
 const PRESET_EXAMPLES = [
@@ -33,7 +35,7 @@ const PRESET_EXAMPLES = [
   "Electric auto-rickshaw battery fire near Financial District. Single driver with minor burn trauma.",
 ];
 
-export function AIIncidentAnalyzer({ onIncidentParsed }: AIIncidentAnalyzerProps) {
+export function AIIncidentAnalyzer({ onIncidentCreated }: AIIncidentAnalyzerProps) {
   const [reportText, setReportText] = useState(
     "Multi vehicle accident near Gachibowli flyover. Two buses involved. Ambulance required immediately."
   );
@@ -43,17 +45,38 @@ export function AIIncidentAnalyzer({ onIncidentParsed }: AIIncidentAnalyzerProps
   );
   const [showJson, setShowJson] = useState(false);
 
-  const handleAnalyze = () => {
+  const handleAnalyzeAndSave = async () => {
     if (!reportText.trim()) return;
     setIsAnalyzing(true);
-    setTimeout(() => {
-      const result = parseEmergencyReportMock(reportText);
-      setParsedIncident(result);
-      setIsAnalyzing(false);
-      if (onIncidentParsed) {
-        onIncidentParsed(result);
+
+    try {
+      // 1. Run deterministic parser
+      const parsedResult = parseEmergencyReportMock(reportText);
+      setParsedIncident(parsedResult);
+
+      // 2. Persist to database via HazardService (inserts to reports & hazards tables)
+      const serviceRes = await HazardService.createHazardFromParsedIncident(parsedResult, reportText);
+
+      if (serviceRes.data) {
+        toast.success(`Hazard ${serviceRes.data.id} Created!`, {
+          description: `Logged in Supabase database (${serviceRes.data.location})`,
+        });
+
+        if (onIncidentCreated) {
+          onIncidentCreated(serviceRes.data);
+        }
+      } else if (serviceRes.error) {
+        toast.error("Database Save Warning", {
+          description: serviceRes.error,
+        });
       }
-    }, 750);
+    } catch (err) {
+      toast.error("Analysis Exception", {
+        description: err instanceof Error ? err.message : "Unknown error during report parsing",
+      });
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
   const getSeverityBadgeClass = (severity: string) => {
@@ -83,18 +106,18 @@ export function AIIncidentAnalyzer({ onIncidentParsed }: AIIncidentAnalyzerProps
             <CardTitle className="text-base font-bold font-mono text-zinc-100 flex items-center gap-2">
               <span>AI Incident Analyzer</span>
               <span className="px-2 py-0.5 text-[10px] font-mono font-semibold uppercase rounded bg-cyan-950 text-cyan-400 border border-cyan-500/30">
-                NLP Heuristics
+                Supabase Connected
               </span>
             </CardTitle>
             <p className="text-xs text-zinc-400 font-mono">
-              Extract incident parameters from unformatted emergency dispatch notes
+              Extract incident parameters & persist reports to database
             </p>
           </div>
         </div>
 
         <Badge variant="outline" className="font-mono text-[11px] bg-zinc-900 border-zinc-700 text-zinc-300 hidden sm:flex gap-1.5">
           <Sparkles className="h-3 w-3 text-cyan-400" />
-          <span>Automated Parsing</span>
+          <span>Automated Ingestion</span>
         </Badge>
       </CardHeader>
 
@@ -136,19 +159,19 @@ export function AIIncidentAnalyzer({ onIncidentParsed }: AIIncidentAnalyzerProps
 
         {/* Action Button */}
         <Button
-          onClick={handleAnalyze}
+          onClick={handleAnalyzeAndSave}
           disabled={isAnalyzing || !reportText.trim()}
           className="w-full bg-cyan-600 hover:bg-cyan-500 text-zinc-950 font-bold font-mono text-xs uppercase tracking-wider h-10 shadow-[0_0_20px_rgba(6,182,212,0.25)] transition-all"
         >
           {isAnalyzing ? (
             <span className="flex items-center gap-2">
               <Loader2 className="h-4 w-4 animate-spin text-zinc-950" />
-              <span>Analyzing Incident Stream...</span>
+              <span>Parsing & Saving to Supabase...</span>
             </span>
           ) : (
             <span className="flex items-center gap-2">
               <Sparkles className="h-4 w-4" />
-              <span>Analyze Incident Report</span>
+              <span>Analyze & Register Hazard</span>
             </span>
           )}
         </Button>

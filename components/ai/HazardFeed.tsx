@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { AIHazard } from "@/types/ai";
-import { MOCK_HAZARDS } from "@/lib/mock-ai-data";
+import { HazardService } from "@/services/HazardService";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
 import {
   Flame,
   Search,
@@ -14,6 +15,9 @@ import {
   CheckCircle2,
   Radio,
   Activity,
+  Loader2,
+  Wifi,
+  WifiOff,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -21,19 +25,82 @@ import { cn } from "@/lib/utils";
 interface HazardFeedProps {
   onSelectHazard?: (hazard: AIHazard) => void;
   selectedHazardId?: string;
+  externalNewHazard?: AIHazard | null;
 }
 
 type FilterTab = "All" | "Critical" | "Moderate" | "Resolved";
 
-export function HazardFeed({ onSelectHazard, selectedHazardId }: HazardFeedProps) {
+export function HazardFeed({
+  onSelectHazard,
+  selectedHazardId,
+  externalNewHazard,
+}: HazardFeedProps) {
   const [filterTab, setFilterTab] = useState<FilterTab>("All");
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeHazardId, setActiveHazardId] = useState<string>(
-    selectedHazardId || MOCK_HAZARDS[0].id
-  );
+  const [hazards, setHazards] = useState<AIHazard[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRealtimeConnected, setIsRealtimeConnected] = useState(false);
+  const [activeHazardId, setActiveHazardId] = useState<string>("");
+
+  const loadHazards = useCallback(async () => {
+    setIsLoading(true);
+    const res = await HazardService.getAllHazards();
+    if (res.data) {
+      setHazards(res.data);
+      if (res.data.length > 0 && !activeHazardId) {
+        setActiveHazardId(res.data[0].id);
+      }
+    }
+    setIsLoading(false);
+  }, [activeHazardId]);
+
+  useEffect(() => {
+    loadHazards();
+  }, [loadHazards]);
+
+  // Sync external newly registered hazard
+  useEffect(() => {
+    if (externalNewHazard) {
+      setHazards((prev) => {
+        if (prev.some((h) => h.id === externalNewHazard.id)) return prev;
+        return [externalNewHazard, ...prev];
+      });
+      setActiveHazardId(externalNewHazard.id);
+    }
+  }, [externalNewHazard]);
+
+  // Subscribe to Supabase Realtime
+  useEffect(() => {
+    const unsubscribe = HazardService.subscribeToHazards(
+      (newHazard) => {
+        setHazards((prev) => {
+          if (prev.some((h) => h.id === newHazard.id)) return prev;
+          return [newHazard, ...prev];
+        });
+        toast.info(`Realtime Update: New Hazard ${newHazard.id}`, {
+          description: newHazard.title,
+        });
+      },
+      (updatedHazard) => {
+        setHazards((prev) =>
+          prev.map((h) => (h.id === updatedHazard.id ? updatedHazard : h))
+        );
+      },
+      (deletedId) => {
+        setHazards((prev) => prev.filter((h) => h.id !== deletedId));
+      },
+      (status) => {
+        setIsRealtimeConnected(status === "SUBSCRIBED");
+      }
+    );
+
+    return () => {
+      unsubscribe();
+    };
+  }, []);
 
   const filteredHazards = useMemo(() => {
-    return MOCK_HAZARDS.filter((hazard) => {
+    return hazards.filter((hazard) => {
       // Tab filter
       if (filterTab === "Critical" && hazard.severity !== "Critical") return false;
       if (filterTab === "Moderate" && hazard.severity !== "Moderate" && hazard.severity !== "Low")
@@ -51,7 +118,7 @@ export function HazardFeed({ onSelectHazard, selectedHazardId }: HazardFeedProps
       }
       return true;
     });
-  }, [filterTab, searchQuery]);
+  }, [hazards, filterTab, searchQuery]);
 
   const handleHazardClick = (hazard: AIHazard) => {
     setActiveHazardId(hazard.id);
@@ -105,14 +172,23 @@ export function HazardFeed({ onSelectHazard, selectedHazardId }: HazardFeedProps
                 </span>
               </CardTitle>
               <p className="text-xs text-zinc-400 font-mono">
-                Real-time incident stream aggregated from AI sensors
+                Real-time incident stream aggregated via Supabase Engine
               </p>
             </div>
           </div>
 
           <div className="hidden sm:flex items-center gap-1.5 text-[11px] font-mono text-emerald-400 bg-zinc-900 border border-zinc-800 px-2.5 py-1 rounded-md">
-            <Activity className="h-3.5 w-3.5 animate-pulse" />
-            <span>Live Stream</span>
+            {isRealtimeConnected ? (
+              <>
+                <Wifi className="h-3.5 w-3.5 text-emerald-400 animate-pulse" />
+                <span>Realtime Active</span>
+              </>
+            ) : (
+              <>
+                <WifiOff className="h-3.5 w-3.5 text-amber-400" />
+                <span>Sync Staged</span>
+              </>
+            )}
           </div>
         </div>
 
@@ -156,14 +232,19 @@ export function HazardFeed({ onSelectHazard, selectedHazardId }: HazardFeedProps
 
       {/* Feed Scroll Area */}
       <CardContent className="p-3 flex-1 overflow-y-auto space-y-2.5 min-h-0 scrollbar-thin">
-        {filteredHazards.length === 0 ? (
+        {isLoading ? (
+          <div className="p-12 text-center text-zinc-400 font-mono text-xs flex flex-col items-center justify-center gap-2">
+            <Loader2 className="h-6 w-6 animate-spin text-cyan-400" />
+            <span>Loading hazards from database...</span>
+          </div>
+        ) : filteredHazards.length === 0 ? (
           <div className="p-8 text-center text-zinc-500 font-mono text-xs">
             No hazards found matching current filters.
           </div>
         ) : (
           <AnimatePresence mode="popLayout">
             {filteredHazards.map((hazard) => {
-              const isSelected = activeHazardId === hazard.id;
+              const isSelected = (selectedHazardId || activeHazardId) === hazard.id;
               return (
                 <motion.div
                   key={hazard.id}

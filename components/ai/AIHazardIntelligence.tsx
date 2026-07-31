@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { AIHazard, ParsedIncident } from "@/types/ai";
+import { AIHazard } from "@/types/ai";
 import { MOCK_HAZARDS } from "@/lib/mock-ai-data";
 import { AIIncidentAnalyzer } from "@/components/ai/AIIncidentAnalyzer";
 import { HazardFeed } from "@/components/ai/HazardFeed";
@@ -14,30 +14,15 @@ import { motion } from "framer-motion";
 
 export function AIHazardIntelligence() {
   const [selectedHazard, setSelectedHazard] = useState<AIHazard>(MOCK_HAZARDS[0]);
+  const [newestHazard, setNewestHazard] = useState<AIHazard | null>(null);
 
   const handleSelectHazard = (hazard: AIHazard) => {
     setSelectedHazard(hazard);
   };
 
-  const handleIncidentParsed = (parsed: ParsedIncident) => {
-    // Dynamically match or create a new hazard focus
-    const newHazard: AIHazard = {
-      id: `HZ-${Math.floor(800 + Math.random() * 100)}`,
-      title: `${parsed.incidentType} parsed via NLP`,
-      priority: parsed.priority,
-      severity: parsed.severity,
-      timestamp: "Just now",
-      location: parsed.location,
-      description: parsed.rawReport,
-      verificationPercentage: parsed.confidenceScore,
-      source: "CCTV AI Vision",
-      status: "Active",
-      coordinates: { lat: 17.4401, lng: 78.3489 },
-      vehiclesInvolved: parsed.vehiclesInvolved,
-      blockedLanes: parsed.blockedLanes,
-      victimsEstimated: parsed.victimsEstimated,
-    };
-    setSelectedHazard(newHazard);
+  const handleIncidentCreated = (createdHazard: AIHazard) => {
+    setSelectedHazard(createdHazard);
+    setNewestHazard(createdHazard);
   };
 
   return (
@@ -57,18 +42,18 @@ export function AIHazardIntelligence() {
             <h2 className="text-xl font-bold font-mono text-zinc-100 flex items-center gap-2">
               <span>AI Hazard Intelligence Command Suite</span>
               <span className="px-2.5 py-0.5 text-[11px] font-mono font-bold uppercase rounded bg-cyan-950 text-cyan-400 border border-cyan-500/40">
-                Phase 3 Active
+                Phase 4 Live
               </span>
             </h2>
             <p className="text-xs text-zinc-400 font-mono">
-              Autonomous NLP incident extraction, multi-sensor verification, and dispatch recommendation matrix
+              Autonomous NLP incident extraction, multi-sensor verification, and Supabase real-time matrix
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2 text-xs font-mono text-emerald-400 bg-zinc-900/90 px-3 py-2 rounded-xl border border-zinc-800 self-start sm:self-auto">
           <ShieldCheck className="h-4 w-4 shrink-0" />
-          <span>AI Multi-Sensor Matrix: <strong>Active</strong></span>
+          <span>Supabase Realtime Matrix: <strong>Active</strong></span>
         </div>
       </div>
 
@@ -80,7 +65,7 @@ export function AIHazardIntelligence() {
         {/* Left Column */}
         <div className="space-y-6">
           {/* AI Incident Analyzer Card */}
-          <AIIncidentAnalyzer onIncidentParsed={handleIncidentParsed} />
+          <AIIncidentAnalyzer onIncidentCreated={handleIncidentCreated} />
 
           {/* Verification Engine Panel */}
           <VerificationPanel selectedHazardId={selectedHazard.id} selectedHazard={selectedHazard} />
@@ -93,7 +78,11 @@ export function AIHazardIntelligence() {
         <div className="space-y-6">
           {/* Live Hazard Scrolling Feed */}
           <div className="h-[620px]">
-            <HazardFeed onSelectHazard={handleSelectHazard} selectedHazardId={selectedHazard.id} />
+            <HazardFeed
+              onSelectHazard={handleSelectHazard}
+              selectedHazardId={selectedHazard.id}
+              externalNewHazard={newestHazard}
+            />
           </div>
 
           {/* Vertical Glowing Incident Timeline */}
