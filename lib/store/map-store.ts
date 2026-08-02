@@ -38,6 +38,7 @@ interface MapState {
   setHazards: (hazards: Hazard[]) => void;
   setAmbulances: (ambulances: Ambulance[]) => void;
   setSelectedHazard: (id: string | null) => void;
+  selectHazard: (id: string | null) => void;
   setSelectedAmbulance: (id: string | null) => void;
   setActiveRoute: (route: RouteGeoJSON) => void;
   
@@ -56,6 +57,7 @@ export const useMapStore = create<MapState>((set, get) => ({
   setHazards: (hazards) => set({ hazards }),
   setAmbulances: (ambulances) => set({ ambulances }),
   setSelectedHazard: (id) => set({ selectedHazardId: id }),
+  selectHazard: (id) => set((state) => ({ selectedHazardId: state.selectedHazardId === id ? null : id })),
   setSelectedAmbulance: (id) => set({ selectedAmbulanceId: id }),
   setActiveRoute: (route) => set({ activeRoute: route }),
 

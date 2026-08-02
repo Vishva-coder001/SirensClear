@@ -9,20 +9,40 @@ import { Badge } from "@/components/ui/badge";
 import { Send, MapPin, Navigation, AlertTriangle, CheckCircle2, ShieldAlert } from "lucide-react";
 import { DISPATCH_PRESETS } from "@/lib/constants";
 
+import { AmbulanceService } from "@/services/AmbulanceService";
+import { toast } from "sonner";
+
 export function DispatchPanel() {
   const [origin, setOrigin] = useState(DISPATCH_PRESETS.origins[0]);
   const [destination, setDestination] = useState(DISPATCH_PRESETS.destinations[0]);
   const [priority, setPriority] = useState("code-3");
   const [dispatchStatus, setDispatchStatus] = useState<"idle" | "dispatching" | "dispatched">("idle");
 
-  const handleDispatch = (e: React.FormEvent) => {
+  const handleDispatch = async (e: React.FormEvent) => {
     e.preventDefault();
     setDispatchStatus("dispatching");
 
-    setTimeout(() => {
+    try {
+      // Find available ambulance unit
+      const { data: ambulances } = await AmbulanceService.getAllAmbulances();
+      const unit = (ambulances || []).find((a) => a.status === "Available") || ambulances?.[0];
+
+      if (unit) {
+        await AmbulanceService.updateAmbulanceStatus(unit.id, "En Route", destination);
+      }
+
       setDispatchStatus("dispatched");
+      toast.success("Manual Dispatch Orders Transmitted!", {
+        description: `Unit assigned from ${origin} to ${destination} (${priority.toUpperCase()})`,
+      });
+
       setTimeout(() => setDispatchStatus("idle"), 4000);
-    }, 800);
+    } catch (err) {
+      toast.error("Dispatch Error", {
+        description: err instanceof Error ? err.message : "Failed to execute manual dispatch",
+      });
+      setDispatchStatus("idle");
+    }
   };
 
   return (

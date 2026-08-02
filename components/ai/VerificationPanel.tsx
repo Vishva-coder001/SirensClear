@@ -26,18 +26,38 @@ export function VerificationPanel({
   selectedHazardId = "HZ-801",
   selectedHazard,
 }: VerificationPanelProps) {
-  // Find report corresponding to selected hazard or default to first
-  const report: VerificationReport = useMemo(() => {
-    const found = MOCK_VERIFICATION_REPORTS.find(
-      (r) => r.hazardId === selectedHazardId
-    );
-    return found || MOCK_VERIFICATION_REPORTS[0];
-  }, [selectedHazardId]);
-
+  // Find report corresponding to selected hazard or generate deterministic derived report
   const hazard = useMemo(() => {
     if (selectedHazard) return selectedHazard;
     return MOCK_HAZARDS.find((h) => h.id === selectedHazardId) || MOCK_HAZARDS[0];
   }, [selectedHazard, selectedHazardId]);
+
+  const report: VerificationReport = useMemo(() => {
+    const found = MOCK_VERIFICATION_REPORTS.find(
+      (r) => r.hazardId === hazard.id
+    );
+    if (found) return found;
+
+    // Deterministic fallback report derived from hazard properties
+    return {
+      id: `VR-${hazard.id}`,
+      hazardId: hazard.id,
+      duplicateDetectionScore: 94,
+      confidenceScore: hazard.verificationPercentage,
+      sourceReliabilityScore: 96,
+      fakeReportRiskScore: Math.max(1, 100 - hazard.verificationPercentage),
+      crossVerificationSources: [
+        { name: hazard.source, status: "Verified", timestamp: hazard.timestamp },
+        { name: "CCTV AI Vision", status: "Verified", timestamp: hazard.timestamp },
+        { name: "Traffic Sensor IoT", status: "Verified", timestamp: hazard.timestamp },
+      ],
+      verificationTimeline: [
+        { stage: "Report Ingestion", status: "completed", timestamp: hazard.timestamp, details: `Signal ingested for ${hazard.location}` },
+        { stage: "NLP & Vision Parsing", status: "completed", timestamp: hazard.timestamp, details: `Extracted ${hazard.severity} severity and ${hazard.priority}` },
+        { stage: "Cross-Sensor Consensus", status: "completed", timestamp: hazard.timestamp, details: `Achieved ${hazard.verificationPercentage}% consensus score` },
+      ],
+    };
+  }, [hazard]);
 
   const getRiskBadgeClass = (score: number) => {
     if (score < 5) return "bg-emerald-950/80 text-emerald-400 border-emerald-500/30";

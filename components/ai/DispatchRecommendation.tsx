@@ -4,6 +4,8 @@ import React, { useState, useMemo, useEffect } from "react";
 import { AIDispatchRecommendation, AIHazard } from "@/types/ai";
 import { DispatchService } from "@/services/DispatchService";
 import { HospitalService } from "@/services/HospitalService";
+import { AmbulanceService } from "@/services/AmbulanceService";
+import { HazardService } from "@/services/HazardService";
 import { MOCK_HAZARDS } from "@/lib/mock-ai-data";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -38,7 +40,6 @@ export function DispatchRecommendation({
     data: AIDispatchRecommendation | null;
   }>({ hazardId: null, data: null });
   const [isActionLoading, setIsActionLoading] = useState(false);
-  const [activeUnitIndex, setActiveUnitIndex] = useState(0);
 
   const hazard = useMemo(() => {
     if (selectedHazard) return selectedHazard;
@@ -82,61 +83,83 @@ export function DispatchRecommendation({
     };
   }, [hazard.id]);
 
-  const recommendation = recommendationState.hazardId === hazard.id
-    ? recommendationState.data
-    : null;
-  const isLoading = recommendationState.hazardId !== hazard.id;
+  // Dynamically computed dispatch recommendation using actual fleet and hospital data
+  const [excludedUnits, setExcludedUnits] = useState<string[]>([]);
+  const [prevHazardId, setPrevHazardId] = useState<string>(hazard.id);
 
-  // Dynamic alternate units for reassigning
-  const alternateUnits = useMemo(() => {
-    const baseUnit = recommendation?.recommendedAmbulance || "ALS Response Unit A04";
-    const baseDist = recommendation?.distanceKm || 1.8;
-    const baseEta = recommendation?.etaMinutes || 3.2;
+  if (prevHazardId !== hazard.id) {
+    setPrevHazardId(hazard.id);
+    setExcludedUnits([]);
+  }
 
-    return [
-      {
-        unitId: "AMB-A04",
-        unitName: baseUnit,
-        distanceKm: baseDist,
-        etaMinutes: baseEta,
-        hospital: recommendation?.recommendedHospital || "AIG Hospitals Gachibowli",
-        reasoning: recommendation?.reasoning || "Closest available ALS unit with green corridor clearance.",
-      },
-      {
-        unitId: "AMB-A08",
-        unitName: "ALS Response Unit A08",
-        distanceKm: Number((baseDist + 0.9).toFixed(1)),
-        etaMinutes: Number((baseEta + 1.4).toFixed(1)),
-        hospital: "Continental Hospitals Nanakramguda",
-        reasoning: "Alternative Unit A08 routed via Outer Ring Road service link bypassing financial district queue.",
-      },
-      {
-        unitId: "AMB-T04",
-        unitName: "Trauma Specialist Unit T04",
-        distanceKm: Number((baseDist + 1.3).toFixed(1)),
-        etaMinutes: Number((baseEta + 2.0).toFixed(1)),
-        hospital: "Medicover Emergency Hub Hitec",
-        reasoning: "Trauma Unit T04 selected for heavy hydraulic extrication gear availability.",
-      },
-    ];
-  }, [recommendation]);
+  const [dynamicRecommendation, setDynamicRecommendation] = useState<AIDispatchRecommendation | null>(null);
 
-  const currentUnit = alternateUnits[activeUnitIndex % alternateUnits.length];
+  useEffect(() => {
+    let isMounted = true;
+    const calculateDispatch = async () => {
+      const lat = hazard.coordinates?.lat || 17.4401;
+      const lng = hazard.coordinates?.lng || 78.3489;
+      const isCritical = hazard.severity === "Critical";
+
+      const [unit, hospital] = await Promise.all([
+        AmbulanceService.getRecommendedAmbulance(lat, lng, excludedUnits),
+        HospitalService.getRecommendedHospital(lat, lng, isCritical),
+      ]);
+
+      if (!isMounted) return;
+
+      const dist = unit && unit.latitude && unit.longitude
+        ? Math.hypot(unit.latitude - lat, unit.longitude - lng) * 111
+        : 2.1;
+      const eta = Number((dist * 1.5 + 1.2).toFixed(1));
+
+      const computed: AIDispatchRecommendation = {
+        id: recommendationState.data?.id || `REC-${hazard.id}`,
+        hazardId: hazard.id,
+        recommendedAmbulance: unit ? `${unit.unit_number} (${unit.driver})` : "ALS Response Unit A04",
+        unitId: unit ? unit.id : "AMB-A04",
+        distanceKm: Number(dist.toFixed(1)),
+        etaMinutes: eta,
+        recommendedHospital: hospital ? hospital.name : "AIG Hospitals Gachibowli",
+        hospitalOccupancy: hospital && hospital.icu_available > 5 ? "Low" : "Moderate",
+        reasoning: `${unit ? unit.unit_number : "Unit"} selected as closest available unit to ${hazard.location}. ${hospital ? hospital.name : "Hospital"} recommended with ${hospital?.icu_available ?? 8} ICU beds available.`,
+        confidenceScore: hazard.verificationPercentage,
+        status: (recommendationState.data?.status || "Pending") as AIDispatchRecommendation["status"],
+      };
+
+      setDynamicRecommendation(computed);
+    };
+
+    void calculateDispatch();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [hazard, excludedUnits, recommendationState.data]);
+
+  const recommendation = dynamicRecommendation || recommendationState.data;
+  const isLoading = recommendationState.hazardId !== hazard.id && !dynamicRecommendation;
 
   const handleDispatch = async () => {
     if (!recommendation) return;
     setIsActionLoading(true);
 
     try {
-      const dispatchRes = await DispatchService.dispatchUnit(recommendation.id);
-      await HospitalService.reserveBed("HOSP-001");
+      await DispatchService.dispatchUnit(recommendation.id);
+      await AmbulanceService.updateAmbulanceStatus(recommendation.unitId, "En Route", hazard.location);
+      await HazardService.updateHazardStatus(hazard.id, "Dispatched");
 
-      if (dispatchRes.data) {
-        setRecommendationState({ hazardId: hazard.id, data: dispatchRes.data });
-        toast.success(`Unit ${currentUnit.unitName} Dispatched!`, {
-          description: `Assigned to ${hazard.location} (ETA ${currentUnit.etaMinutes}m)`,
-        });
-      }
+      setRecommendationState({
+        hazardId: hazard.id,
+        data: {
+          ...recommendation,
+          status: "Dispatched",
+        },
+      });
+
+      toast.success(`Unit ${recommendation.recommendedAmbulance} Dispatched!`, {
+        description: `Assigned to ${hazard.location} (ETA ${recommendation.etaMinutes}m)`,
+      });
     } catch (err) {
       toast.error("Dispatch Failed", {
         description: err instanceof Error ? err.message : "Database request error",
@@ -151,20 +174,31 @@ export function DispatchRecommendation({
     setIsActionLoading(true);
 
     try {
-      const nextIndex = (activeUnitIndex + 1) % alternateUnits.length;
-      setActiveUnitIndex(nextIndex);
-      const nextUnit = alternateUnits[nextIndex];
+      const currentUnitId = recommendation.unitId;
+      const newExcluded = [...excludedUnits, currentUnitId];
+      setExcludedUnits(newExcluded);
 
-      const reassignRes = await DispatchService.reassignUnit(
-        recommendation.id,
-        nextUnit.unitId,
-        nextUnit.reasoning
-      );
+      const lat = hazard.coordinates?.lat || 17.4401;
+      const lng = hazard.coordinates?.lng || 78.3489;
+      const nextUnit = await AmbulanceService.getRecommendedAmbulance(lat, lng, newExcluded);
 
-      if (reassignRes.data) {
-        setRecommendationState({ hazardId: hazard.id, data: reassignRes.data });
-        toast.info(`Unit Reassigned to ${nextUnit.unitName}`, {
-          description: "Recalculated OSRM route & hospital beds.",
+      if (nextUnit) {
+        const reasoning = `Reassigned to next-best candidate ${nextUnit.unit_number} (${nextUnit.driver}) to optimize arrival vector.`;
+        await DispatchService.reassignUnit(recommendation.id, nextUnit.id, reasoning);
+
+        setRecommendationState({
+          hazardId: hazard.id,
+          data: {
+            ...recommendation,
+            unitId: nextUnit.id,
+            recommendedAmbulance: `${nextUnit.unit_number} (${nextUnit.driver})`,
+            reasoning,
+            status: "Reassigned",
+          },
+        });
+
+        toast.info(`Unit Reassigned to ${nextUnit.unit_number}`, {
+          description: "Recalculated arrival vector & hospital beds.",
         });
       }
     } catch (err) {
@@ -224,7 +258,7 @@ export function DispatchRecommendation({
                 >
                   <div className="flex items-center gap-2">
                     <CheckCircle2 className="h-4 w-4 text-emerald-400 animate-bounce" />
-                    <span>Unit {currentUnit.unitName} DISPATCHED to {hazard.location}! Signal lock established.</span>
+                    <span>Unit {recommendation.recommendedAmbulance} DISPATCHED to {hazard.location}! Signal lock established.</span>
                   </div>
                   <Badge variant="outline" className="bg-emerald-900 border-emerald-600 text-emerald-200">
                     Active En Route
@@ -257,7 +291,7 @@ export function DispatchRecommendation({
                 <span className="text-zinc-500 text-[10px] uppercase flex items-center gap-1">
                   <Siren className="h-3 w-3 text-blue-400" /> Recommended Ambulance
                 </span>
-                <p className="font-bold text-zinc-100 text-sm truncate">{currentUnit.unitName}</p>
+                <p className="font-bold text-zinc-100 text-sm truncate">{recommendation?.recommendedAmbulance}</p>
                 <p className="text-[10px] text-emerald-400 flex items-center gap-1">
                   <ShieldCheck className="h-3 w-3" /> Unit Ready & Staged
                 </p>
@@ -268,7 +302,7 @@ export function DispatchRecommendation({
                 <span className="text-zinc-500 text-[10px] uppercase flex items-center gap-1">
                   <Navigation className="h-3 w-3 text-cyan-400" /> Distance
                 </span>
-                <p className="font-bold text-zinc-100 text-sm">{currentUnit.distanceKm} km</p>
+                <p className="font-bold text-zinc-100 text-sm">{recommendation?.distanceKm} km</p>
                 <p className="text-[10px] text-zinc-400">Direct Arterial Route</p>
               </div>
 
@@ -277,7 +311,7 @@ export function DispatchRecommendation({
                 <span className="text-zinc-500 text-[10px] uppercase flex items-center gap-1">
                   <Clock className="h-3 w-3 text-amber-400" /> Golden Hour ETA
                 </span>
-                <p className="font-bold text-emerald-400 text-sm">{currentUnit.etaMinutes} mins</p>
+                <p className="font-bold text-emerald-400 text-sm">{recommendation?.etaMinutes} mins</p>
                 <p className="text-[10px] text-zinc-400">Traffic Density: Low</p>
               </div>
 
@@ -286,8 +320,8 @@ export function DispatchRecommendation({
                 <span className="text-zinc-500 text-[10px] uppercase flex items-center gap-1">
                   <Building2 className="h-3 w-3 text-purple-400" /> Destination Hospital
                 </span>
-                <p className="font-bold text-zinc-100 text-xs truncate" title={currentUnit.hospital}>
-                  {currentUnit.hospital}
+                <p className="font-bold text-zinc-100 text-xs truncate" title={recommendation?.recommendedHospital}>
+                  {recommendation?.recommendedHospital}
                 </p>
                 <p className="text-[10px] text-emerald-400">ICU Capacity: Available</p>
               </div>
@@ -308,7 +342,7 @@ export function DispatchRecommendation({
               </div>
 
               <p className="text-xs font-mono text-zinc-300 leading-relaxed italic">
-                &ldquo;{currentUnit.reasoning}&rdquo;
+                &ldquo;{recommendation?.reasoning}&rdquo;
               </p>
             </div>
 

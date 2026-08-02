@@ -115,9 +115,24 @@ export interface ServiceResponse<T> {
   isFallback?: boolean;
 }
 
+export type ProfileDbRow = {
+  id: string;
+  full_name: string;
+  role: "admin" | "ambulance";
+  ambulance_unit_id: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type Database = {
   public: {
     Tables: {
+      profiles: {
+        Row: ProfileDbRow;
+        Insert: Omit<ProfileDbRow, "created_at" | "updated_at"> & { created_at?: string; updated_at?: string };
+        Update: Partial<ProfileDbRow>;
+        Relationships: [];
+      };
       hazards: {
         Row: HazardDbRow;
         Insert: HazardInsertPayload;

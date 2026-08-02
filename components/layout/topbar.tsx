@@ -53,24 +53,38 @@ export function Topbar({ onMobileMenuToggle }: TopbarProps) {
           <span>Matrix Status: <strong className="text-emerald-400">Optimal</strong></span>
         </div>
 
-        {/* Simple Dispatcher Console Placeholder */}
-        <div className="flex items-center gap-3 px-3 py-1.5 rounded-lg border border-zinc-800 bg-zinc-900/90 text-zinc-100 shadow-inner">
-          <div className="relative flex h-8 w-8 items-center justify-center rounded-md bg-blue-950/80 border border-blue-500/40 text-blue-400">
-            <Terminal className="h-4 w-4" />
-            <span className="absolute bottom-0 right-0 h-2 w-2 rounded-full bg-emerald-500 border border-zinc-950" />
+        {/* Simple Dispatcher Console & Logout */}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3 px-3 py-1.5 rounded-lg border border-zinc-800 bg-zinc-900/90 text-zinc-100 shadow-inner">
+            <div className="relative flex h-8 w-8 items-center justify-center rounded-md bg-blue-950/80 border border-blue-500/40 text-blue-400">
+              <Terminal className="h-4 w-4" />
+              <span className="absolute bottom-0 right-0 h-2 w-2 rounded-full bg-emerald-500 border border-zinc-950" />
+            </div>
+
+            <div className="flex flex-col text-left">
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-semibold text-zinc-100 font-mono tracking-tight">
+                  Dispatcher Console
+                </span>
+                <Shield className="h-3 w-3 text-blue-400 hidden sm:inline-block" />
+              </div>
+              <span className="text-[10px] text-zinc-400 font-mono">
+                Station #04 • Admin Command
+              </span>
+            </div>
           </div>
 
-          <div className="flex flex-col text-left">
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs font-semibold text-zinc-100 font-mono tracking-tight">
-                Dispatcher Console
-              </span>
-              <Shield className="h-3 w-3 text-blue-400 hidden sm:inline-block" />
-            </div>
-            <span className="text-[10px] text-zinc-400 font-mono">
-              Station #04 • Primary Dispatch
-            </span>
-          </div>
+          <button
+            onClick={async () => {
+              const { supabase } = await import("@/lib/supabase/client");
+              await supabase.auth.signOut();
+              window.location.href = "/login";
+            }}
+            title="Sign Out of SirensClear"
+            className="p-2 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-400 hover:text-red-400 transition-colors text-xs font-mono"
+          >
+            Sign Out
+          </button>
         </div>
       </div>
     </header>

@@ -32,28 +32,31 @@ export function IncidentTimeline({
     return MOCK_HAZARDS.find((h) => h.id === selectedHazardId) || MOCK_HAZARDS[0];
   }, [selectedHazard, selectedHazardId]);
 
+  const isDispatched = hazard.status === "Dispatched" || hazard.status === "Resolved";
+  const isResolved = hazard.status === "Resolved";
+
   const milestones: TimelineMilestone[] = [
     {
       id: "t1",
       stage: "Report Received",
       label: "Emergency Signal Ingested",
-      timestamp: "17:34:02",
+      timestamp: hazard.timestamp || "17:34:02",
       status: "completed",
-      details: "Raw multi-source emergency report logged from CCTV vision and 911 feed.",
+      details: `Raw emergency report ingested for ${hazard.location}.`,
     },
     {
       id: "t2",
       stage: "AI Parsed",
       label: "NLP Entity & Severity Extracted",
-      timestamp: "17:34:15",
+      timestamp: hazard.timestamp || "17:34:15",
       status: "completed",
-      details: `Parsed ${hazard.vehiclesInvolved}, ${hazard.blockedLanes}, estimated ${hazard.victimsEstimated} victims.`,
+      details: `Parsed ${hazard.vehiclesInvolved || "vehicles"}, ${hazard.blockedLanes || "lanes"}, estimated ${hazard.victimsEstimated ?? 2} victims.`,
     },
     {
       id: "t3",
       stage: "Verified",
       label: "Multi-Sensor Consensus Achieved",
-      timestamp: "17:34:40",
+      timestamp: hazard.timestamp || "17:34:40",
       status: "completed",
       details: `Verification engine score ${hazard.verificationPercentage}% via ${hazard.source}. Zero duplicate anomaly detected.`,
     },
@@ -61,7 +64,7 @@ export function IncidentTimeline({
       id: "t4",
       stage: "Dispatcher Alerted",
       label: "Command Grid Alert Broadcast",
-      timestamp: "17:35:05",
+      timestamp: hazard.timestamp || "17:35:05",
       status: "completed",
       details: `Priority ${hazard.priority} payload rendered to emergency dispatcher consoles.`,
     },
@@ -69,25 +72,29 @@ export function IncidentTimeline({
       id: "t5",
       stage: "Ambulance Assigned",
       label: "Optimal Responder Unit Dispatched",
-      timestamp: "17:35:22",
-      status: hazard.status === "Dispatched" || hazard.status === "Resolved" ? "completed" : "active",
-      details: "ALS Unit A04 assigned via OSRM minimum ETA matrix.",
+      timestamp: isDispatched ? "Active" : "Pending",
+      status: isResolved ? "completed" : isDispatched ? "active" : "pending",
+      details: isDispatched
+        ? "Responder unit assigned via minimum ETA matrix."
+        : "Awaiting dispatcher unit confirmation.",
     },
     {
       id: "t6",
       stage: "Hospital Notified",
       label: "Trauma ICU Bed Reservation",
-      timestamp: "17:35:40",
-      status: hazard.status === "Dispatched" || hazard.status === "Resolved" ? "completed" : "pending",
-      details: "AIG Hospitals Emergency Department notified with patient telemetry.",
+      timestamp: isDispatched ? "Active" : "Pending",
+      status: isResolved ? "completed" : isDispatched ? "completed" : "pending",
+      details: isDispatched
+        ? "Destination trauma center notified with patient telemetry."
+        : "Pending unit dispatch confirmation.",
     },
     {
       id: "t7",
       stage: "Arrival",
       label: "On-Scene Intervention",
-      timestamp: hazard.status === "Resolved" ? "17:39:10" : "EST 17:39:30",
-      status: hazard.status === "Resolved" ? "completed" : "pending",
-      details: "Target scene arrival and paramedic deployment.",
+      timestamp: isResolved ? "Completed" : "EST Arrival",
+      status: isResolved ? "completed" : "pending",
+      details: isResolved ? "Target scene arrival achieved." : "Paramedic scene arrival estimated.",
     },
   ];
 

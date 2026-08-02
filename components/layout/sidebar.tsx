@@ -6,8 +6,6 @@ import {
   MapPin,
   Flame,
   Send,
-  BarChart3,
-  Settings,
   ChevronLeft,
   ChevronRight,
   Siren,
@@ -29,8 +27,6 @@ export const NAV_ITEMS = [
   { id: "hazards", label: "Hazards", icon: Flame, badge: "18" },
   { id: "dispatch", label: "Dispatch", icon: Send },
   { id: "ai-intelligence", label: "AI Intelligence", icon: Cpu, badge: "Phase 3" },
-  { id: "analytics", label: "Analytics", icon: BarChart3, placeholder: true },
-  { id: "settings", label: "Settings", icon: Settings, placeholder: true },
 ];
 
 export function Sidebar({
@@ -113,12 +109,6 @@ export function Sidebar({
               {!isCollapsed && item.badge && (
                 <span className="ml-auto rounded-full bg-amber-950/80 border border-amber-500/40 text-amber-400 px-1.5 py-0.5 text-[10px] font-mono">
                   {item.badge}
-                </span>
-              )}
-
-              {!isCollapsed && item.placeholder && (
-                <span className="ml-auto text-[9px] uppercase tracking-wider text-zinc-500 font-mono bg-zinc-900 px-1 py-0.5 rounded border border-zinc-800">
-                  Nav
                 </span>
               )}
 

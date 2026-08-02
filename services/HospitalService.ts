@@ -36,6 +36,43 @@ export class HospitalService {
   }
 
   /**
+   * Recommends optimal hospital.
+   * Critical severity -> ICU availability first, then distance & available beds.
+   * Other severity -> distance first, then available beds.
+   */
+  static async getRecommendedHospital(
+    incidentLat: number,
+    incidentLng: number,
+    isCritical: boolean
+  ): Promise<HospitalDbRow> {
+    const { data } = await this.getAllHospitals();
+    const list = data || MOCK_HOSPITALS_LIST;
+
+    if (isCritical) {
+      const icuCapables = list.filter((h) => h.icu_available > 0);
+      const pool = icuCapables.length > 0 ? icuCapables : list;
+      const sorted = [...pool].sort((a, b) => {
+        const distA = Math.hypot(a.latitude - incidentLat, a.longitude - incidentLng);
+        const distB = Math.hypot(b.latitude - incidentLat, b.longitude - incidentLng);
+        if (b.icu_available !== a.icu_available) {
+          return b.icu_available - a.icu_available;
+        }
+        return distA - distB;
+      });
+      return sorted[0];
+    } else {
+      const bedCapables = list.filter((h) => h.available_beds > 0);
+      const pool = bedCapables.length > 0 ? bedCapables : list;
+      const sorted = [...pool].sort((a, b) => {
+        const distA = Math.hypot(a.latitude - incidentLat, a.longitude - incidentLng);
+        const distB = Math.hypot(b.latitude - incidentLat, b.longitude - incidentLng);
+        return distA - distB;
+      });
+      return sorted[0];
+    }
+  }
+
+  /**
    * Reserve an ICU bed or decrease available beds upon dispatch
    */
   static async reserveBed(hospitalId: string): Promise<ServiceResponse<HospitalDbRow>> {

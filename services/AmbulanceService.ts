@@ -40,6 +40,45 @@ export class AmbulanceService {
   }
 
   /**
+   * Recommends the best available ambulance unit based on distance, status, and ETA.
+   * Excludes units present in excludeUnitIds.
+   */
+  static async getRecommendedAmbulance(
+    incidentLat: number,
+    incidentLng: number,
+    excludeUnitIds: string[] = []
+  ): Promise<AmbulanceDbRow | null> {
+    const { data } = await this.getAllAmbulances();
+    const fleet = data || MOCK_AMBULANCE_UNITS;
+
+    const candidates = fleet.filter(
+      (u) => u.status === "Available" && !excludeUnitIds.includes(u.id)
+    );
+
+    const availablePool = candidates.length > 0
+      ? candidates
+      : fleet.filter((u) => !excludeUnitIds.includes(u.id));
+
+    if (availablePool.length === 0) return fleet[0] || null;
+
+    let bestUnit = availablePool[0];
+    let minDistance = Infinity;
+
+    for (const unit of availablePool) {
+      const dist = (unit.latitude && unit.longitude)
+        ? Math.hypot(unit.latitude - incidentLat, unit.longitude - incidentLng) * 111
+        : (unit.eta ?? 3.0) * 0.8;
+
+      if (dist < minDistance) {
+        minDistance = dist;
+        bestUnit = unit;
+      }
+    }
+
+    return bestUnit;
+  }
+
+  /**
    * Update ambulance status or location
    */
   static async updateAmbulanceStatus(

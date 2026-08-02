@@ -1,10 +1,11 @@
 import {
   fetchDispatchesDb,
+  createDispatchDb,
   updateDispatchDb,
   subscribeToDispatchesRealtime,
 } from "@/lib/supabase/dispatch";
 import { AIDispatchRecommendation } from "@/types/ai";
-import { DispatchDbRow, ServiceResponse } from "@/types/database";
+import { DispatchDbRow, DispatchInsertPayload, ServiceResponse } from "@/types/database";
 import { MOCK_DISPATCH_RECOMMENDATIONS } from "@/lib/mock-ai-data";
 
 export function mapDbDispatchToRecommendation(row: DispatchDbRow): AIDispatchRecommendation {
@@ -79,6 +80,84 @@ export class DispatchService {
       loading: false,
       status: "success",
       isFallback: true,
+    };
+  }
+
+  /**
+   * Create or update dispatch record for a hazard
+   */
+  static async upsertDispatch(
+    hazardId: string,
+    ambulanceId: string,
+    hospitalId: string,
+    eta: number,
+    distance: number,
+    reasoning: string,
+    status: AIDispatchRecommendation["status"]
+  ): Promise<ServiceResponse<AIDispatchRecommendation>> {
+    const dispatchId = `REC-${hazardId.replace(/^(HZ-)/, "")}`;
+    const payload: DispatchInsertPayload = {
+      id: dispatchId,
+      hazard_id: hazardId,
+      ambulance_id: ambulanceId,
+      hospital_id: hospitalId,
+      eta,
+      distance,
+      reasoning,
+      confidence: 95.0,
+      status,
+    };
+
+    const { data, error } = await createDispatchDb(payload);
+
+    if (error || !data) {
+      // Try updating if already exists
+      const { data: updateData, error: updateError } = await updateDispatchDb(dispatchId, {
+        ambulance_id: ambulanceId,
+        hospital_id: hospitalId,
+        eta,
+        distance,
+        reasoning,
+        status,
+      });
+
+      if (updateError || !updateData) {
+        return {
+          data: {
+            id: dispatchId,
+            hazardId,
+            unitId: ambulanceId,
+            recommendedAmbulance: ambulanceId,
+            recommendedHospital: hospitalId,
+            hospitalOccupancy: "Low",
+            etaMinutes: eta,
+            distanceKm: distance,
+            reasoning,
+            confidenceScore: 95.0,
+            status,
+          },
+          error: error ? error.message : updateError ? updateError.message : null,
+          loading: false,
+          status: "success",
+          isFallback: true,
+        };
+      }
+
+      return {
+        data: mapDbDispatchToRecommendation(updateData),
+        error: null,
+        loading: false,
+        status: "success",
+        isFallback: false,
+      };
+    }
+
+    return {
+      data: mapDbDispatchToRecommendation(data),
+      error: null,
+      loading: false,
+      status: "success",
+      isFallback: false,
     };
   }
 

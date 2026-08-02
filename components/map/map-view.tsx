@@ -9,9 +9,18 @@ import {
   MAP_SOURCE_IDS,
   MAP_LAYER_IDS,
 } from '@/lib/map-config';
+import { AmbulanceUnit, HazardItem } from '@/lib/constants';
+import { cn } from '@/lib/utils';
 import { useMapStore } from '@/lib/store/map-store';
 
-export default function MapView() {
+export interface MapViewProps {
+  ambulances?: AmbulanceUnit[];
+  hazards?: HazardItem[];
+  className?: string;
+}
+
+export default function MapView(props: MapViewProps = {}) {
+  const { className } = props;
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
 
@@ -20,7 +29,15 @@ export default function MapView() {
   const isRealtimeConnected = useMapStore((state) => state.isRealtimeConnected);
   const initializeRealtime = useMapStore((state) => state.initializeRealtimeSubscriptions);
 
-  // Initialize Map Instance & Realtime Connection
+  // Initialize Realtime Connection once on mount
+  useEffect(() => {
+    const cleanupRealtime = initializeRealtime();
+    return () => {
+      cleanupRealtime();
+    };
+  }, [initializeRealtime]);
+
+  // Initialize Map Instance
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
 
@@ -39,7 +56,7 @@ export default function MapView() {
       // Register Route Source
       map.addSource(MAP_SOURCE_IDS.route, {
         type: 'geojson',
-        data: activeRoute,
+        data: useMapStore.getState().activeRoute,
       });
 
       // Emergency Line Glow Effect
@@ -68,11 +85,7 @@ export default function MapView() {
       });
     });
 
-    // Connect Realtime Listeners
-    const cleanupRealtime = initializeRealtime();
-
     return () => {
-      cleanupRealtime();
       map.remove();
       mapRef.current = null;
     };
@@ -90,7 +103,7 @@ export default function MapView() {
   }, [activeRoute]);
 
   return (
-    <div className="relative w-full h-full min-h-[500px] rounded-xl overflow-hidden border border-slate-800">
+    <div className={cn("relative w-full h-full min-h-[500px] rounded-xl overflow-hidden border border-slate-800", className)}>
       {/* Realtime Status Indicator Badge */}
       <div className="absolute top-4 right-4 z-10 flex items-center gap-2 bg-slate-900/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-slate-700 text-xs text-white">
         <span
