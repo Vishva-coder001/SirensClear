@@ -40,9 +40,6 @@ SirensClear combines:
 **SirensClear:**  
 https://sirens-clear.vercel.app
 
-### 🔐 Login
-
-https://sirens-clear.vercel.app/login
 
 ---
 
@@ -56,8 +53,6 @@ SirensClear uses **Supabase Authentication** and database-backed role-based acce
 |---|---|
 | Email | `admin@sirensclear.com` |
 | Password | `Provided privately to evaluators` |
-| Role | `admin` |
-| Redirect | `/dashboard` |
 
 > **Security Notice:** The production admin password is intentionally not stored in this public repository. Evaluators can obtain the demo password from the project team.
 
