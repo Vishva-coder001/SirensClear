@@ -17,7 +17,7 @@ export interface MapViewState {
 }
 
 export const DEFAULT_VIEW_STATE: MapViewState = {
-  longitude: 78.4867,
+  longitude: 78.4867, // Hyderabad coordinates
   latitude: 17.385,
   zoom: 12,
   pitch: 30,
@@ -27,11 +27,34 @@ export const DEFAULT_VIEW_STATE: MapViewState = {
 // ─── Map Style ───────────────────────────────────────────────────────────────
 
 /**
- * CartoDB Dark Matter – OpenStreetMap-compatible dark vector tiles.
- * No API key required.
+ * Google Maps Standard Raster Tiles
+ * Note: Excellent for local hackathon development to bypass CORS.
  */
-export const MAP_STYLE_URL =
-"https://demotiles.maplibre.org/style.json";
+export const MAP_STYLE_URL = {
+  version: 8,
+  sources: {
+    "google-maps": {
+      type: "raster",
+      tiles: [
+        "https://mt0.google.com/vt/lyrs=m&hl=en&x={x}&y={y}&z={z}",
+        "https://mt1.google.com/vt/lyrs=m&hl=en&x={x}&y={y}&z={z}",
+        "https://mt2.google.com/vt/lyrs=m&hl=en&x={x}&y={y}&z={z}",
+        "https://mt3.google.com/vt/lyrs=m&hl=en&x={x}&y={y}&z={z}"
+      ],
+      tileSize: 256,
+      attribution: 'Map data &copy; Google'
+    }
+  },
+  layers: [
+    {
+      id: "google-maps-layer",
+      type: "raster",
+      source: "google-maps",
+      minzoom: 0,
+      maxzoom: 20
+    }
+  ]
+};
 
 // ─── Map Constraints ─────────────────────────────────────────────────────────
 
@@ -72,13 +95,6 @@ export interface RouteFeature {
 /**
  * GeoJSON FeatureCollection for a route.
  * Structured to accept OSRM route geometry directly in Phase 4.
- *
- * OSRM integration note:
- *   const geom = osrmResponse.routes[0].geometry; // {type:"LineString", coordinates:[...]}
- *   const route: RouteGeoJSON = {
- *     type: "FeatureCollection",
- *     features: [{ type: "Feature", properties: {}, geometry: geom }],
- *   };
  */
 export interface RouteGeoJSON {
   type: "FeatureCollection";

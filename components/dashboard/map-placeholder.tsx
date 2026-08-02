@@ -16,7 +16,7 @@ import React from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { MapPin, Radio } from "lucide-react";
-import { MapView } from "@/components/map/map-view";
+import MapView from "@/components/map/map-view";
 import { MOCK_AMBULANCE_UNITS, HAZARDS_LIST } from "@/lib/constants";
 
 export function MapPlaceholder() {
