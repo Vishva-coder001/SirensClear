@@ -19,7 +19,7 @@ export async function createHazardDb(payload: HazardInsertPayload): Promise<{ da
   try {
     const { data, error } = await supabase
       .from("hazards")
-      .insert([payload])
+      .insert(payload)
       .select()
       .single();
 

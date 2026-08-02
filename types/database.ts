@@ -7,6 +7,7 @@ export type Json =
   | Json[];
 
 export interface HazardDbRow {
+
   id: string;
   title: string;
   description: string;
@@ -36,6 +37,7 @@ export type HazardInsertPayload = Omit<HazardDbRow, "created_at" | "updated_at">
 export type HazardUpdatePayload = Partial<HazardInsertPayload>;
 
 export interface DispatchDbRow {
+
   id: string;
   hazard_id: string;
   ambulance_id: string | null;
@@ -55,6 +57,7 @@ export type DispatchInsertPayload = Omit<DispatchDbRow, "created_at"> & {
 export type DispatchUpdatePayload = Partial<DispatchInsertPayload>;
 
 export interface AmbulanceDbRow {
+
   id: string;
   unit_number: string;
   driver: string;
@@ -73,6 +76,7 @@ export type AmbulanceInsertPayload = Omit<AmbulanceDbRow, "updated_at"> & {
 export type AmbulanceUpdatePayload = Partial<AmbulanceInsertPayload>;
 
 export interface HospitalDbRow {
+
   id: string;
   name: string;
   capacity: number;
@@ -84,6 +88,7 @@ export interface HospitalDbRow {
 }
 
 export interface ReportDbRow {
+
   id: string;
   hazard_id: string | null;
   raw_text: string;
@@ -105,34 +110,43 @@ export interface ServiceResponse<T> {
   isFallback?: boolean;
 }
 
-export interface Database {
+export type Database = {
   public: {
     Tables: {
       hazards: {
         Row: HazardDbRow;
         Insert: HazardInsertPayload;
         Update: HazardUpdatePayload;
+        Relationships: [];
       };
       dispatches: {
         Row: DispatchDbRow;
         Insert: DispatchInsertPayload;
         Update: DispatchUpdatePayload;
+        Relationships: [];
       };
       ambulances: {
         Row: AmbulanceDbRow;
         Insert: AmbulanceInsertPayload;
         Update: AmbulanceUpdatePayload;
+        Relationships: [];
       };
       hospitals: {
         Row: HospitalDbRow;
         Insert: HospitalDbRow;
         Update: Partial<HospitalDbRow>;
+        Relationships: [];
       };
       reports: {
         Row: ReportDbRow;
         Insert: ReportInsertPayload;
         Update: Partial<ReportInsertPayload>;
+        Relationships: [];
       };
     };
+    Views: Record<string, never>;
+    Functions: Record<string, never>;
+    Enums: Record<string, never>;
+    CompositeTypes: Record<string, never>;
   };
-}
+};
