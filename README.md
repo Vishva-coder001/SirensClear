@@ -1,36 +1,143 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🚨 SirensClear
 
-## Getting Started
+<div align="center">
 
-First, run the development server:
+### AI-Assisted Emergency Response & Smart Dispatch Platform
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+**Smarter Routing. Faster Response. Saved Lives.**
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+[🌐 Live Demo](https://sirens-clear.vercel.app) • [🚀 Launch Dashboard](https://sirens-clear.vercel.app/login)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+</div>
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+---
 
-## Learn More
+## 📌 Overview
 
-To learn more about Next.js, take a look at the following resources:
+**SirensClear** is an AI-assisted emergency response decision-support platform designed to help emergency command centers process incidents faster and make better dispatch decisions.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+The system transforms unstructured emergency reports into structured incident intelligence, verifies hazards, determines incident priority, recommends suitable ambulances and hospitals, and allows a human dispatcher to approve or reassign emergency resources.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+SirensClear combines:
 
-## Deploy on Vercel
+- 🧠 AI-assisted incident analysis
+- ⚠️ Hazard intelligence
+- ✅ Multi-source verification
+- 🚑 Intelligent ambulance recommendation
+- 🏥 Capacity-aware hospital selection
+- 🧑‍✈️ Human-in-the-loop dispatch
+- 🗺️ Interactive emergency mapping
+- 📡 Supabase Realtime synchronization
+- 🔐 Role-based authentication
+- 🚑 Dedicated ambulance responder portal
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+---
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 🌐 Live Application
+
+### 🚀 Production
+
+**SirensClear:**  
+https://sirens-clear.vercel.app
+
+### 🔐 Login
+
+https://sirens-clear.vercel.app/login
+
+---
+
+## 🔑 Demo Access
+
+SirensClear uses **Supabase Authentication** and database-backed role-based access control.
+
+### Admin / Dispatcher
+
+| Field | Demo Credential |
+|---|---|
+| Email | `admin@sirensclear.com` |
+| Password | `Provided privately to evaluators` |
+| Role | `admin` |
+| Redirect | `/dashboard` |
+
+> **Security Notice:** The production admin password is intentionally not stored in this public repository. Evaluators can obtain the demo password from the project team.
+
+### Ambulance Responder
+
+A separate ambulance account is supported through the same authentication system.
+
+Ambulance users are automatically redirected to:
+
+`/ambulance`
+
+---
+
+# 🎯 Problem Statement
+
+Emergency response systems often operate with fragmented information.
+
+Incoming emergency information may originate from:
+
+- Citizen reports
+- Emergency calls
+- Traffic incidents
+- CCTV systems
+- IoT sensors
+- Field responders
+- Other emergency infrastructure
+
+Dispatchers may need to manually determine:
+
+- What happened?
+- How serious is the incident?
+- Is the information reliable?
+- Which ambulance should respond?
+- Which hospital has appropriate capacity?
+- How quickly can the unit reach the incident?
+
+During critical emergencies, these delays can consume valuable time within the **Golden Hour**.
+
+SirensClear introduces an intelligent decision-support layer between incoming emergency information and emergency response operations.
+
+---
+
+# 💡 Solution
+
+SirensClear converts raw emergency information into an actionable response workflow.
+
+```text
+Emergency Report
+        │
+        ▼
+AI Incident Analysis
+        │
+        ▼
+Structured Hazard Creation
+        │
+        ▼
+Multi-Source Verification
+        │
+        ▼
+Severity & Priority Assessment
+        │
+        ▼
+Ambulance Recommendation
+        │
+        ▼
+Hospital Selection
+        │
+        ▼
+Human Dispatcher Decision
+        │
+        ├──── Reassign Unit
+        │
+        ▼
+Emergency Dispatch
+        │
+        ▼
+Ambulance Responder Portal
+        │
+        ▼
+Mission Status Updates
+        │
+        ▼
+Realtime Operational Monitoring
