@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect, useCallback } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { AIHazard } from "@/types/ai";
 import { HazardService } from "@/services/HazardService";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -14,7 +14,6 @@ import {
   Clock,
   CheckCircle2,
   Radio,
-  Activity,
   Loader2,
   Wifi,
   WifiOff,
@@ -42,37 +41,35 @@ export function HazardFeed({
   const [isRealtimeConnected, setIsRealtimeConnected] = useState(false);
   const [activeHazardId, setActiveHazardId] = useState<string>("");
 
-  const loadHazards = useCallback(async () => {
-    setIsLoading(true);
-    const res = await HazardService.getAllHazards();
-    if (res.data) {
-      setHazards(res.data);
-      if (res.data.length > 0 && !activeHazardId) {
-        setActiveHazardId(res.data[0].id);
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadHazards = async () => {
+      const res = await HazardService.getAllHazards();
+      if (!isMounted) return;
+
+      if (res.data) {
+        setHazards(res.data);
+        if (res.data.length > 0) {
+          setActiveHazardId((currentId) => currentId || res.data![0].id);
+        }
       }
-    }
-    setIsLoading(false);
-  }, [activeHazardId]);
+      setIsLoading(false);
+    };
 
-  useEffect(() => {
-    loadHazards();
-  }, [loadHazards]);
+    void loadHazards();
 
-  // Sync external newly registered hazard
-  useEffect(() => {
-    if (externalNewHazard) {
-      setHazards((prev) => {
-        if (prev.some((h) => h.id === externalNewHazard.id)) return prev;
-        return [externalNewHazard, ...prev];
-      });
-      setActiveHazardId(externalNewHazard.id);
-    }
-  }, [externalNewHazard]);
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Subscribe to Supabase Realtime
   useEffect(() => {
+    let isMounted = true;
     const unsubscribe = HazardService.subscribeToHazards(
       (newHazard) => {
+        if (!isMounted) return;
         setHazards((prev) => {
           if (prev.some((h) => h.id === newHazard.id)) return prev;
           return [newHazard, ...prev];
@@ -82,25 +79,36 @@ export function HazardFeed({
         });
       },
       (updatedHazard) => {
+        if (!isMounted) return;
         setHazards((prev) =>
           prev.map((h) => (h.id === updatedHazard.id ? updatedHazard : h))
         );
       },
       (deletedId) => {
+        if (!isMounted) return;
         setHazards((prev) => prev.filter((h) => h.id !== deletedId));
       },
       (status) => {
+        if (!isMounted) return;
         setIsRealtimeConnected(status === "SUBSCRIBED");
       }
     );
 
     return () => {
+      isMounted = false;
       unsubscribe();
     };
   }, []);
 
+  const displayedHazards = useMemo(() => {
+    if (!externalNewHazard || hazards.some((hazard) => hazard.id === externalNewHazard.id)) {
+      return hazards;
+    }
+    return [externalNewHazard, ...hazards];
+  }, [externalNewHazard, hazards]);
+
   const filteredHazards = useMemo(() => {
-    return hazards.filter((hazard) => {
+    return displayedHazards.filter((hazard) => {
       // Tab filter
       if (filterTab === "Critical" && hazard.severity !== "Critical") return false;
       if (filterTab === "Moderate" && hazard.severity !== "Moderate" && hazard.severity !== "Low")
@@ -118,7 +126,7 @@ export function HazardFeed({
       }
       return true;
     });
-  }, [hazards, filterTab, searchQuery]);
+  }, [displayedHazards, filterTab, searchQuery]);
 
   const handleHazardClick = (hazard: AIHazard) => {
     setActiveHazardId(hazard.id);

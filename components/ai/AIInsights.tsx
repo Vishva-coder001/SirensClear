@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState } from "react";
 import { AIInsightsData } from "@/types/ai";
 import { HazardService } from "@/services/HazardService";
 import { DispatchService } from "@/services/DispatchService";
@@ -46,41 +46,56 @@ function AnimatedNumber({ value, suffix = "", decimals = 0 }: { value: number; s
 }
 
 export function AIInsights({ insights: propInsights }: AIInsightsProps) {
-  const [insightsData, setInsightsData] = useState<AIInsightsData>(propInsights || MOCK_AI_INSIGHTS);
+  const [loadedInsights, setLoadedInsights] = useState<AIInsightsData>(MOCK_AI_INSIGHTS);
 
-  const computeDynamicInsights = useCallback(async () => {
-    const hazardsRes = await HazardService.getAllHazards();
-    const dispatchesRes = await DispatchService.getAllDispatches();
+  useEffect(() => {
+    if (propInsights) return;
 
-    if (hazardsRes.data) {
+    let isMounted = true;
+
+    const loadInsights = async () => {
+      const [hazardsRes, dispatchesRes] = await Promise.all([
+        HazardService.getAllHazards(),
+        DispatchService.getAllDispatches(),
+      ]);
+      if (!isMounted || !hazardsRes.data) return;
+
       const hazards = hazardsRes.data;
-      const criticalCount = hazards.filter((h) => h.severity === "Critical").length;
+      const criticalCount = hazards.filter((hazard) => hazard.severity === "Critical").length;
+      const totalConfidence = hazards.reduce(
+        (total, hazard) => total + hazard.verificationPercentage,
+        0
+      );
+      const averageConfidencePercentage = hazards.length > 0
+        ? Number((totalConfidence / hazards.length).toFixed(1))
+        : MOCK_AI_INSIGHTS.averageConfidencePercentage;
+      const averageEtaMinutes = dispatchesRes.data && dispatchesRes.data.length > 0
+        ? Number(
+            (
+              dispatchesRes.data.reduce((total, dispatch) => total + dispatch.etaMinutes, 0) /
+              dispatchesRes.data.length
+            ).toFixed(1)
+          )
+        : MOCK_AI_INSIGHTS.averageEtaMinutes;
 
-      const totalConfidence = hazards.reduce((acc, h) => acc + h.verificationPercentage, 0);
-      const avgConfidence = hazards.length > 0 ? Number((totalConfidence / hazards.length).toFixed(1)) : 94.2;
-
-      let avgEta = 4.8;
-      if (dispatchesRes.data && dispatchesRes.data.length > 0) {
-        const totalEta = dispatchesRes.data.reduce((acc, d) => acc + d.etaMinutes, 0);
-        avgEta = Number((totalEta / dispatchesRes.data.length).toFixed(1));
-      }
-
-      setInsightsData({
+      setLoadedInsights({
         criticalIncidents: criticalCount > 0 ? criticalCount : MOCK_AI_INSIGHTS.criticalIncidents,
-        averageEtaMinutes: avgEta,
-        averageConfidencePercentage: avgConfidence,
+        averageEtaMinutes,
+        averageConfidencePercentage,
         verificationSuccessPercentage: 98.6,
         predictedCongestionLevel: hazards.length > 10 ? "Severe" : "Moderate",
         activeUnitsDeployed: 14,
       });
-    }
-  }, []);
+    };
 
-  useEffect(() => {
-    if (!propInsights) {
-      computeDynamicInsights();
-    }
-  }, [propInsights, computeDynamicInsights]);
+    void loadInsights();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [propInsights]);
+
+  const insightsData = propInsights ?? loadedInsights;
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 font-mono">

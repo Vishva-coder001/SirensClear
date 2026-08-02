@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect, useCallback } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { AIDispatchRecommendation, AIHazard } from "@/types/ai";
 import { DispatchService } from "@/services/DispatchService";
 import { HospitalService } from "@/services/HospitalService";
@@ -33,8 +33,10 @@ export function DispatchRecommendation({
   selectedHazardId = "HZ-801",
   selectedHazard,
 }: DispatchRecommendationProps) {
-  const [recommendation, setRecommendation] = useState<AIDispatchRecommendation | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [recommendationState, setRecommendationState] = useState<{
+    hazardId: string | null;
+    data: AIDispatchRecommendation | null;
+  }>({ hazardId: null, data: null });
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [activeUnitIndex, setActiveUnitIndex] = useState(0);
 
@@ -43,30 +45,34 @@ export function DispatchRecommendation({
     return MOCK_HAZARDS.find((h) => h.id === selectedHazardId) || MOCK_HAZARDS[0];
   }, [selectedHazard, selectedHazardId]);
 
-  const loadDispatch = useCallback(async () => {
-    setIsLoading(true);
-    const res = await DispatchService.getDispatchByHazardId(hazard.id);
-    if (res.data) {
-      setRecommendation(res.data);
-    }
-    setIsLoading(false);
-  }, [hazard.id]);
-
   useEffect(() => {
-    loadDispatch();
-  }, [loadDispatch]);
+    let isMounted = true;
+
+    const loadDispatch = async () => {
+      const res = await DispatchService.getDispatchByHazardId(hazard.id);
+      if (!isMounted) return;
+
+      setRecommendationState({ hazardId: hazard.id, data: res.data });
+    };
+
+    void loadDispatch();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [hazard.id]);
 
   // Subscribe to Realtime Dispatches
   useEffect(() => {
     const unsubscribe = DispatchService.subscribeToDispatches(
       (newDispatch) => {
         if (newDispatch.hazardId === hazard.id) {
-          setRecommendation(newDispatch);
+          setRecommendationState({ hazardId: hazard.id, data: newDispatch });
         }
       },
       (updatedDispatch) => {
         if (updatedDispatch.hazardId === hazard.id) {
-          setRecommendation(updatedDispatch);
+          setRecommendationState({ hazardId: hazard.id, data: updatedDispatch });
         }
       }
     );
@@ -75,6 +81,11 @@ export function DispatchRecommendation({
       unsubscribe();
     };
   }, [hazard.id]);
+
+  const recommendation = recommendationState.hazardId === hazard.id
+    ? recommendationState.data
+    : null;
+  const isLoading = recommendationState.hazardId !== hazard.id;
 
   // Dynamic alternate units for reassigning
   const alternateUnits = useMemo(() => {
@@ -121,7 +132,7 @@ export function DispatchRecommendation({
       await HospitalService.reserveBed("HOSP-001");
 
       if (dispatchRes.data) {
-        setRecommendation(dispatchRes.data);
+        setRecommendationState({ hazardId: hazard.id, data: dispatchRes.data });
         toast.success(`Unit ${currentUnit.unitName} Dispatched!`, {
           description: `Assigned to ${hazard.location} (ETA ${currentUnit.etaMinutes}m)`,
         });
@@ -151,7 +162,7 @@ export function DispatchRecommendation({
       );
 
       if (reassignRes.data) {
-        setRecommendation(reassignRes.data);
+        setRecommendationState({ hazardId: hazard.id, data: reassignRes.data });
         toast.info(`Unit Reassigned to ${nextUnit.unitName}`, {
           description: "Recalculated OSRM route & hospital beds.",
         });

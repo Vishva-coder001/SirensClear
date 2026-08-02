@@ -786,7 +786,9 @@ export function parseEmergencyReportMock(reportText: string): ParsedIncident {
   if (lower.includes("rain") || lower.includes("wet") || lower.includes("water")) weatherImpact = "Wet asphalt, 15% traction reduction";
   else if (lower.includes("night") || lower.includes("dark")) weatherImpact = "Low ambient light, high headlight glare";
 
-  const confidenceScore = Math.floor(Math.random() * 6) + 94; // 94 - 99
+  // Parsing output is rendered during SSR, so it must be stable for identical
+  // reports. Keep the mock confidence deterministic instead of simulating it.
+  const confidenceScore = 96;
 
   return {
     incidentType,
@@ -799,6 +801,6 @@ export function parseEmergencyReportMock(reportText: string): ParsedIncident {
     confidenceScore,
     priority,
     rawReport: reportText,
-    parsedAt: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
+    parsedAt: "Deterministic mock analysis",
   };
 }

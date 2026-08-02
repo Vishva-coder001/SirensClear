@@ -19,8 +19,10 @@ import { useMapStore } from "@/lib/store/map-store";
 
 import { MapControls } from "./map-controls";
 import { RouteLayer } from "./route-layer";
+import { AmbulanceMarkers } from "./ambulance-markers";
+import { HazardMarkers } from "./hazard-markers";
 
-import { Loader2, WifiOff } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 export interface MapViewProps {
   ambulances?: AmbulanceUnit[];
@@ -40,11 +42,12 @@ export function MapView({
     selectedAmbulanceId,
     activeRoute, // ✅ THIS WAS MISSING
     layerVisibility,
+    selectHazard,
+    selectAmbulance,
     toggleLayer,
   } = useMapStore();
 
-  const [isLoading, setIsLoading] = useState(false);
-  const [hasError, setHasError] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   const handleLoad = useCallback(() => {
     console.log("✅ MAP LOADED");

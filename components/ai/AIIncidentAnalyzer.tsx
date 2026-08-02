@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { ParsedIncident, AIHazard } from "@/types/ai";
 import { parseEmergencyReportMock } from "@/lib/mock-ai-data";
 import { HazardService } from "@/services/HazardService";
+import { isSupabaseConfigured } from "@/lib/supabase/client";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -57,9 +58,17 @@ export function AIIncidentAnalyzer({ onIncidentCreated }: AIIncidentAnalyzerProp
       // 2. Persist to database via HazardService (inserts to reports & hazards tables)
       const serviceRes = await HazardService.createHazardFromParsedIncident(parsedResult, reportText);
 
-      if (serviceRes.data) {
+      if (serviceRes.data && serviceRes.persisted) {
         toast.success(`Hazard ${serviceRes.data.id} Created!`, {
           description: `Logged in Supabase database (${serviceRes.data.location})`,
+        });
+
+        if (onIncidentCreated) {
+          onIncidentCreated(serviceRes.data);
+        }
+      } else if (serviceRes.data) {
+        toast.warning("Hazard Saved Locally", {
+          description: serviceRes.error ?? "Supabase persistence is unavailable. The hazard is available only in this session.",
         });
 
         if (onIncidentCreated) {
@@ -106,7 +115,7 @@ export function AIIncidentAnalyzer({ onIncidentCreated }: AIIncidentAnalyzerProp
             <CardTitle className="text-base font-bold font-mono text-zinc-100 flex items-center gap-2">
               <span>AI Incident Analyzer</span>
               <span className="px-2 py-0.5 text-[10px] font-mono font-semibold uppercase rounded bg-cyan-950 text-cyan-400 border border-cyan-500/30">
-                Supabase Connected
+                {isSupabaseConfigured ? "Supabase Configured" : "Offline Fallback"}
               </span>
             </CardTitle>
             <p className="text-xs text-zinc-400 font-mono">

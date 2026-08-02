@@ -17,7 +17,7 @@
 
 import { create } from "zustand";
 import { MapLayerVisibility, DEFAULT_LAYER_VISIBILITY, MOCK_ROUTE } from "@/lib/constants";
-import { RouteGeoJSON, EMPTY_ROUTE } from "@/lib/map-config";
+import { RouteGeoJSON } from "@/lib/map-config";
 
 // ─── State shape ──────────────────────────────────────────────────────────────
 

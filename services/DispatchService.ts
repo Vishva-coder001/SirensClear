@@ -1,6 +1,5 @@
 import {
   fetchDispatchesDb,
-  createDispatchDb,
   updateDispatchDb,
   subscribeToDispatchesRealtime,
 } from "@/lib/supabase/dispatch";

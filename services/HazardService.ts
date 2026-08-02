@@ -2,13 +2,24 @@ import {
   fetchHazardsDb,
   createHazardDb,
   updateHazardDb,
-  deleteHazardDb,
   subscribeToHazardsRealtime,
 } from "@/lib/supabase/hazards";
 import { createReportDb } from "@/lib/supabase/reports";
+import { isSupabaseConfigured } from "@/lib/supabase/client";
 import { AIHazard, ParsedIncident } from "@/types/ai";
 import { HazardDbRow, HazardInsertPayload, ServiceResponse } from "@/types/database";
 import { MOCK_HAZARDS } from "@/lib/mock-ai-data";
+
+export interface HazardPersistenceResponse extends ServiceResponse<AIHazard> {
+  /** True only when both the hazard and its audit report reached Supabase. */
+  persisted: boolean;
+  /** True when the hazard reached Supabase but its report did not. */
+  hazardPersisted?: boolean;
+}
+
+function createHazardId(): string {
+  return `HZ-${Date.now().toString(36).toUpperCase()}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
+}
 
 // Utility mapper function converting DB Row to UI Interface
 export function mapDbHazardToAIHazard(row: HazardDbRow): AIHazard {
@@ -66,8 +77,8 @@ export class HazardService {
   static async createHazardFromParsedIncident(
     parsed: ParsedIncident,
     rawText: string
-  ): Promise<ServiceResponse<AIHazard>> {
-    const newId = `HZ-${Math.floor(800 + Math.random() * 100)}`;
+  ): Promise<HazardPersistenceResponse> {
+    const newId = createHazardId();
     const payload: HazardInsertPayload = {
       id: newId,
       title: `${parsed.incidentType} - ${parsed.location}`,
@@ -88,15 +99,12 @@ export class HazardService {
       status: "Active",
     };
 
-    // Save report payload in reports table
-    await createReportDb({
-      hazard_id: newId,
-      raw_text: rawText,
-      parsed_json: JSON.parse(JSON.stringify(parsed)),
-      source: "CCTV AI Vision",
-    });
-
-    const { data, error } = await createHazardDb(payload);
+    const { data, error } = isSupabaseConfigured
+      ? await createHazardDb(payload)
+      : {
+          data: null,
+          error: new Error("Supabase is not configured; hazard is available only in fallback mode."),
+        };
 
     if (error || !data) {
       // Fallback local UI hazard
@@ -119,10 +127,30 @@ export class HazardService {
 
       return {
         data: fallbackHazard,
-        error: error ? error.message : null,
+        error: error?.message ?? "Hazard could not be persisted to Supabase.",
         loading: false,
-        status: "success",
+        status: "error",
         isFallback: true,
+        persisted: false,
+      };
+    }
+
+    const { error: reportError } = await createReportDb({
+      hazard_id: data.id,
+      raw_text: rawText,
+      parsed_json: JSON.parse(JSON.stringify(parsed)),
+      source: "CCTV AI Vision",
+    });
+
+    if (reportError) {
+      return {
+        data: mapDbHazardToAIHazard(data),
+        error: `Hazard was saved, but its report audit record failed: ${reportError.message}`,
+        loading: false,
+        status: "error",
+        isFallback: false,
+        persisted: false,
+        hazardPersisted: true,
       };
     }
 
@@ -132,6 +160,8 @@ export class HazardService {
       loading: false,
       status: "success",
       isFallback: false,
+      persisted: true,
+      hazardPersisted: true,
     };
   }
 

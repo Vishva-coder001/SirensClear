@@ -6,7 +6,7 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[];
 
-export interface HazardDbRow {
+export type HazardDbRow = {
 
   id: string;
   title: string;
@@ -27,7 +27,7 @@ export interface HazardDbRow {
   status: "Active" | "Investigating" | "Dispatched" | "Resolved";
   created_at: string;
   updated_at: string;
-}
+};
 
 export type HazardInsertPayload = Omit<HazardDbRow, "created_at" | "updated_at"> & {
   created_at?: string;
@@ -36,7 +36,7 @@ export type HazardInsertPayload = Omit<HazardDbRow, "created_at" | "updated_at">
 
 export type HazardUpdatePayload = Partial<HazardInsertPayload>;
 
-export interface DispatchDbRow {
+export type DispatchDbRow = {
 
   id: string;
   hazard_id: string;
@@ -48,7 +48,7 @@ export interface DispatchDbRow {
   confidence: number;
   status: "Pending" | "Dispatched" | "Reassigned" | "Completed" | "Cancelled";
   created_at: string;
-}
+};
 
 export type DispatchInsertPayload = Omit<DispatchDbRow, "created_at"> & {
   created_at?: string;
@@ -56,7 +56,7 @@ export type DispatchInsertPayload = Omit<DispatchDbRow, "created_at"> & {
 
 export type DispatchUpdatePayload = Partial<DispatchInsertPayload>;
 
-export interface AmbulanceDbRow {
+export type AmbulanceDbRow = {
 
   id: string;
   unit_number: string;
@@ -67,7 +67,7 @@ export interface AmbulanceDbRow {
   destination: string | null;
   eta: number | null;
   updated_at: string;
-}
+};
 
 export type AmbulanceInsertPayload = Omit<AmbulanceDbRow, "updated_at"> & {
   updated_at?: string;
@@ -75,7 +75,7 @@ export type AmbulanceInsertPayload = Omit<AmbulanceDbRow, "updated_at"> & {
 
 export type AmbulanceUpdatePayload = Partial<AmbulanceInsertPayload>;
 
-export interface HospitalDbRow {
+export type HospitalDbRow = {
 
   id: string;
   name: string;
@@ -85,9 +85,14 @@ export interface HospitalDbRow {
   latitude: number;
   longitude: number;
   created_at?: string;
-}
+};
 
-export interface ReportDbRow {
+// Insert payload for hospitals (created_at optional)
+export type HospitalInsertPayload = Omit<HospitalDbRow, "created_at"> & {
+  created_at?: string;
+};
+export type HospitalUpdatePayload = Partial<HospitalInsertPayload>;
+export type ReportDbRow = {
 
   id: string;
   hazard_id: string | null;
@@ -95,7 +100,7 @@ export interface ReportDbRow {
   parsed_json: Json;
   source: string;
   created_at: string;
-}
+};
 
 export type ReportInsertPayload = Omit<ReportDbRow, "id" | "created_at"> & {
   id?: string;
@@ -123,7 +128,26 @@ export type Database = {
         Row: DispatchDbRow;
         Insert: DispatchInsertPayload;
         Update: DispatchUpdatePayload;
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "dispatches_hazard_id_fkey";
+            columns: ["hazard_id"];
+            referencedRelation: "hazards";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "dispatches_ambulance_id_fkey";
+            columns: ["ambulance_id"];
+            referencedRelation: "ambulances";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "dispatches_hospital_id_fkey";
+            columns: ["hospital_id"];
+            referencedRelation: "hospitals";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       ambulances: {
         Row: AmbulanceDbRow;
@@ -133,15 +157,22 @@ export type Database = {
       };
       hospitals: {
         Row: HospitalDbRow;
-        Insert: HospitalDbRow;
-        Update: Partial<HospitalDbRow>;
+        Insert: HospitalInsertPayload;
+        Update: HospitalUpdatePayload;
         Relationships: [];
       };
       reports: {
         Row: ReportDbRow;
         Insert: ReportInsertPayload;
         Update: Partial<ReportInsertPayload>;
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "reports_hazard_id_fkey";
+            columns: ["hazard_id"];
+            referencedRelation: "hazards";
+            referencedColumns: ["id"];
+          },
+        ];
       };
     };
     Views: Record<string, never>;
