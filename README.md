@@ -6,7 +6,7 @@
 
 **Smarter Routing. Faster Response. Saved Lives.**
 
-[🌐 Live Demo](https://sirens-clear.vercel.app) • [🚀 Launch Dashboard](https://sirens-clear.vercel.app/login)
+[🌐 Live Demo](https://sirens-clear.vercel.app) • 
 
 </div>
 
